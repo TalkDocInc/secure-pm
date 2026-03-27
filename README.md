@@ -1,30 +1,37 @@
 # secure-pm
 
-`secure-pm` replaces default package managers (`pip`, `npm`, `cargo`) to prevent supply chain attacks. It intercepts installations, runs the source code through an AI auditor (Grok, OpenAI, Gemini, or Ollama), and only installs if the code is safe.
+`secure-pm` audits package source code with AI before installation to mitigate supply chain attacks. Supports `pip`, `npm`, and `cargo`.
+
+**Note:** This is an MVP with ongoing improvements to pinning and caching (v0.2.0+).
 
 ## Installation
 ```bash
-git clone https://github.com/TalkDocInc/secure-pm.git
-cd secure-pm
+cd /path/to/secure-pm
 pip install -e .
+# or use the secure-pm itself after initial setup
 ```
 
 ## Setup
-By default, `secure-pm` uses Grok (`grok-4-1-fast-reasoning`). Set your key or change providers/models:
+Set your AI provider and key. Defaults updated for 2026:
 ```bash
-export AI_PROVIDER="grok" # Supports: openai, gemini, ollama
-export AI_MODEL="grok-4-1-fast-reasoning" # Set to override the default model choice natively
+export AI_PROVIDER="grok" # Supports: grok, openai, gemini, ollama
+export AI_MODEL="grok-beta" 
 export XAI_API_KEY="your_key"
+# For OpenAI: export OPENAI_API_KEY=...
 ```
+See `talkdoc_secure_pm/auditor/ai_agent.py` for provider details.
 
 ## Usage
-Audit and install securely:
-- **Pip:** `secure-pm install pip <package>`
-- **NPM:** `secure-pm install npm <package>`
-- **Cargo:** `secure-pm install cargo <package>`
+```bash
+secure-pm install pip <package>     # audits then installs
+secure-pm install npm <package>
+secure-pm install cargo <package>
+secure-pm audit-all .               # batch audit of requirements/package.json/Cargo.toml
+```
 
-Audit an entire repository's lockfiles (batch security checks):
-`secure-pm audit-all .`
+**Limitations (technical debt being addressed):** 
+- Pinning is improved for pip but still MVP for npm/cargo.
+- AI calls can be slow/expensive; caching planned.
 
 ## License
 This project is open-source and available under the [BSD 3-Clause License](LICENSE).

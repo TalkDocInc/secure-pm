@@ -1,7 +1,5 @@
 import argparse
 import sys
-from dotenv import load_dotenv
-load_dotenv()
 from rich.console import Console
 from .managers.pip_manager import PipManager
 from .managers.npm_manager import NpmManager
@@ -10,6 +8,8 @@ from .managers.cargo_manager import CargoManager
 console = Console()
 
 def main():
+    from dotenv import load_dotenv
+    load_dotenv()
     parser = argparse.ArgumentParser(
         description="Secure Package Manager - Audits and pins dependencies securely using AI."
     )

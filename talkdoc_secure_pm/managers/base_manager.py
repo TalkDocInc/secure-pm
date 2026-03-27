@@ -59,7 +59,7 @@ class BaseManager:
     def download(self, package: str) -> tuple[list[str], str]:
         raise NotImplementedError
 
-    def pin_dependency(self, package: str, pkg_hashes: dict[str, str], filepath: str = None):
+    def pin_dependency(self, package: str, pkg_hashes: dict[str, str], filepath: str | None = None):
         raise NotImplementedError
 
     def perform_install(self, package: str, archive_paths: list[str]):

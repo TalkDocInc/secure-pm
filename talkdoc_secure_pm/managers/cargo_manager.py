@@ -46,8 +46,8 @@ class CargoManager(BaseManager):
             
         return [archive_path], extract_dir
 
-    def pin_dependency(self, package: str, pkg_hashes: dict[str, str], filepath: str = None):
-        console.print(f"[cyan]Cargo automatically pins dependencies in Cargo.lock upon add.[/cyan]")
+    def pin_dependency(self, package: str, pkg_hashes: dict[str, str], filepath: str | None = None):
+        console.print(f"[cyan]Cargo pinning via Cargo.lock (TODO: implement hash verification)[/cyan]")
 
     def perform_install(self, package: str, archive_paths: list[str]):
         console.print(f"[cyan]Running secure cargo add for {package}...[/cyan]")

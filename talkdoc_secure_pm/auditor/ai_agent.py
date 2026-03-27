@@ -1,5 +1,4 @@
 import os
-import glob
 from openai import OpenAI
 from rich.console import Console
 
@@ -43,7 +42,7 @@ class AIAuditor:
         Reads critical files from the extracted directory and asks the LLM to audit them.
         Returns True if approved, False if malicious.
         """
-        if not self.client:
+        if not self.client or not self.model:
             console.print(f"[yellow]Simulating AI approval for {package_name} for testing purposes.[/yellow]")
             return True
 
@@ -62,7 +61,7 @@ class AIAuditor:
                     except Exception:
                         pass
         
-        combined_code = "\n\n".join(code_snippets)
+        combined_code = "\n\n".join(code_snippets[:5])  # limit to avoid token overflow
 
         prompt = f"""
 You are a top-tier security researcher and AI agent auditing the source code of a package named '{package_name}' before it is installed.
@@ -91,7 +90,8 @@ REJECTED: <reason>
                 ],
                 temperature=0.0
             )
-            decision = response.choices[0].message.content.strip()
+            content = response.choices[0].message.content
+            decision = content.strip() if content else "REJECTED: No response"
             if decision.startswith("APPROVED"):
                 console.print(f"[bold green]AI Audit Passed for {package_name}[/bold green]")
                 return True

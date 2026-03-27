@@ -2,18 +2,13 @@ import os
 import glob
 import json
 import re
-from dotenv import load_dotenv
-load_dotenv()
 from rich.console import Console
 
 from talkdoc_secure_pm.managers.pip_manager import PipManager
 from talkdoc_secure_pm.managers.npm_manager import NpmManager
 from talkdoc_secure_pm.managers.cargo_manager import CargoManager
 
-try:
-    import tomllib
-except ImportError:
-    import tomli as tomllib
+import tomllib  # Built-in since Python 3.11+
 
 console = Console()
 
@@ -23,7 +18,8 @@ def parse_requirements(filepath: str) -> list[str]:
         with open(filepath, 'r') as f:
             for line in f:
                 line = line.strip()
-                if not line or line.startswith('#') or line.startswith('-e') or line.startswith('--'):
+                if (not line or line.startswith('#') or line.startswith('-e') or 
+                    line.startswith('--') or '# --- Secured by secure-pm' in line):
                     continue
                 # strip out version pins for downloading the package base logic
                 pkg = re.split(r'[=><~]+', line)[0].strip()
@@ -55,14 +51,22 @@ def parse_cargo_toml(filepath: str) -> list[str]:
             data = tomllib.load(f)
             deps = data.get('dependencies', {})
             dev_deps = data.get('dev-dependencies', {})
-            # toml keys are the package names
+            # Handle both top-level and table-based dev deps
+            if isinstance(dev_deps, dict):
+                packages.extend(dev_deps.keys())
+            else:
+                # Check for [dev-dependencies] table
+                dev_section = data.get('dev-dependencies')
+                if isinstance(dev_section, dict):
+                    packages.extend(dev_section.keys())
             packages.extend(deps.keys())
-            packages.extend(dev_deps.keys())
     except Exception as e:
         console.print(f"[red]Error parsing {filepath}: {e}[/red]")
     return list(set(packages))
 
 def run_audit(base_dir: str = "."):
+    from dotenv import load_dotenv
+    load_dotenv()
     console.print(f"[bold blue]Starting REAL Batch Audit in {base_dir} using AI endpoint...[/bold blue]")
     
     req_files = glob.glob(os.path.join(base_dir, "**/requirements.txt"), recursive=True)

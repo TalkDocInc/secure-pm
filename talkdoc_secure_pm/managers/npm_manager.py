@@ -30,8 +30,8 @@ class NpmManager(BaseManager):
             
         return [archive_path], extract_dir
 
-    def pin_dependency(self, package: str, pkg_hashes: dict[str, str], filepath: str = None):
-        console.print(f"[cyan]NPM handles package-lock.json pinning automatically upon install.[/cyan]")
+    def pin_dependency(self, package: str, pkg_hashes: dict[str, str], filepath: str | None = None):
+        console.print(f"[cyan]NPM pinning via package-lock.json (TODO: implement hash verification)[/cyan]")
 
     def perform_install(self, package: str, archive_paths: list[str]):
         console.print(f"[cyan]Running secure npm install for {package}...[/cyan]")
