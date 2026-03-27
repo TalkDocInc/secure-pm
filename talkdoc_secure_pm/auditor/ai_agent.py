@@ -56,9 +56,6 @@ class AIAuditor:
                     try:
                         with open(file_path, 'r', encoding='utf-8') as f:
                             content = f.read()
-                            # truncate to avoid massive context
-                            if len(content) > 10000:
-                                content = content[:10000] + "\n...[TRUNCATED]"
                             code_snippets.append(f"File: {file}\n```\n{content}\n```")
                     except Exception:
                         pass
