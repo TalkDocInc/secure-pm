@@ -21,13 +21,13 @@ class AIAuditor:
             self.api_key = os.getenv("OPENAI_API_KEY")
             if self.api_key:
                 self.client = OpenAI(api_key=self.api_key)
-                self.model = os.getenv("AI_MODEL", "gpt-4o")
+                self.model = os.getenv("AI_MODEL", "gpt-5-mini")
         elif self.provider == "gemini":
             self.api_key = os.getenv("GEMINI_API_KEY")
             if self.api_key:
                 # Assuming usage of Gemini's OpenAI-compatible endpoint
                 self.client = OpenAI(api_key=self.api_key, base_url="https://generativelanguage.googleapis.com/v1beta/openai/")
-                self.model = os.getenv("AI_MODEL", "gemini-1.5-pro-latest")
+                self.model = os.getenv("AI_MODEL", "gemini-3.1-flash-lite-preview")
         elif self.provider == "ollama":
             self.model = os.getenv("AI_MODEL", os.getenv("OLLAMA_MODEL", "llama3"))
             # OpenAI client works with local Ollama 
