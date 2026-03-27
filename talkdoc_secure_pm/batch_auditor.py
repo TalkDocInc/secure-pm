@@ -89,9 +89,12 @@ def run_audit(base_dir: str = "."):
         pkgs = parse_requirements(f)
         for p in pkgs:
             try:
-                is_safe = pip_mgr.audit_only(p)
+                is_safe, pkg_hash = pip_mgr.audit_only(p)
                 if not is_safe:
                     unsafe_packages.append((f, p))
+                else:
+                    secure_file = f + ".secure"
+                    pip_mgr.pin_dependency(p, pkg_hash, filepath=secure_file)
             except Exception as e:
                 console.print(f"[yellow]Failed to audit pip package {p}: {e}[/yellow]")
             total_audited += 1
@@ -102,7 +105,7 @@ def run_audit(base_dir: str = "."):
         pkgs = parse_package_json(f)
         for p in pkgs:
             try:
-                is_safe = npm_mgr.audit_only(p)
+                is_safe, pkg_hash = npm_mgr.audit_only(p)
                 if not is_safe:
                     unsafe_packages.append((f, p))
             except Exception as e:
@@ -115,7 +118,7 @@ def run_audit(base_dir: str = "."):
         pkgs = parse_cargo_toml(f)
         for p in pkgs:
             try:
-                is_safe = cargo_mgr.audit_only(p)
+                is_safe, pkg_hash = cargo_mgr.audit_only(p)
                 if not is_safe:
                     unsafe_packages.append((f, p))
             except Exception as e:

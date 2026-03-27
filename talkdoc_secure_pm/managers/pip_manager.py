@@ -40,10 +40,11 @@ class PipManager(BaseManager):
         # Return path to file and path to extracted contents
         return archive_path, extract_dir
 
-    def pin_dependency(self, package: str, pkg_hash: str):
-        console.print(f"[cyan]Pinning {package} in requirements.txt...[/cyan]")
+    def pin_dependency(self, package: str, pkg_hash: str, filepath: str = None):
+        target_file = filepath if filepath else "requirements.txt"
+        console.print(f"[cyan]Pinning {package} heavily in {target_file}...[/cyan]")
         # Append to requirements.txt securely
-        with open("requirements.txt", "a") as f:
+        with open(target_file, "a") as f:
             f.write(f"{package} --hash=sha256:{pkg_hash}\n")
 
     def perform_install(self, package: str, archive_path: str):

@@ -17,13 +17,14 @@ class BaseManager:
                 sha256_hash.update(byte_block)
         return sha256_hash.hexdigest()
 
-    def audit_only(self, package: str) -> bool:
+    def audit_only(self, package: str) -> tuple[bool, str]:
         """Downloads the package, runs the AI auditor, and cleans up without installing."""
         console.print(f"[bold magenta]Starting audit-only workflow for {package}...[/bold magenta]")
         archive_path, extract_dir = self.download(package)
         try:
             is_safe = self.auditor.audit_package_source(package, extract_dir)
-            return is_safe
+            pkg_hash = self.generate_hash(archive_path) if is_safe else ""
+            return is_safe, pkg_hash
         finally:
             self.cleanup(archive_path, extract_dir)
 
@@ -52,7 +53,7 @@ class BaseManager:
     def download(self, package: str) -> tuple[str, str]:
         raise NotImplementedError
 
-    def pin_dependency(self, package: str, pkg_hash: str):
+    def pin_dependency(self, package: str, pkg_hash: str, filepath: str = None):
         raise NotImplementedError
 
     def perform_install(self, package: str, archive_path: str):
