@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="secure-pm",
-    version="0.2.0",
+    version="0.3.0",
     description="Secure Package Manager - AI Audited Dependency Installation",
     author="TalkDoc Inc.",
     packages=find_packages(include=["talkdoc_secure_pm*"]),

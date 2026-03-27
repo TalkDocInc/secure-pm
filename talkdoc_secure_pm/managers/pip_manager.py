@@ -3,15 +3,25 @@ import subprocess
 import sys
 import shutil
 import tempfile
-import zipfile
-import tarfile
 import re
 from .base_manager import BaseManager
+from ..safe_extract import safe_extract_zip, safe_extract_tar
+from ..signature_verifier import verify_pip_provenance
 from rich.console import Console
 
 console = Console()
 
 class PipManager(BaseManager):
+    ecosystem = "pip"
+
+    def _verify_signatures(self, package: str, archive_paths: list[str]) -> None:
+        for archive_path in archive_paths:
+            verified, msg = verify_pip_provenance(package, archive_path)
+            if verified:
+                console.print(f"[green]Provenance OK: {msg}[/green]")
+            else:
+                console.print(f"[yellow]Provenance warning: {msg}[/yellow]")
+
     def download(self, package: str, include_deps: bool = True) -> tuple[list[str], str]:
         console.print(f"[cyan]Downloading {package} via pip (deps={include_deps})...[/cyan]")
         temp_dir = tempfile.mkdtemp()
@@ -23,7 +33,8 @@ class PipManager(BaseManager):
                 cmd = pip_cmd + ["download", "--no-deps", "-d", temp_dir, package]
             subprocess.run(
                 cmd,
-                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                timeout=300,  # 5 min timeout to prevent hangs
             )
 
             files = os.listdir(temp_dir)
@@ -44,14 +55,14 @@ class PipManager(BaseManager):
 
                 if archive_name.endswith('.whl') or archive_name.endswith('.zip'):
                     try:
-                        with zipfile.ZipFile(archive_path, 'r') as zip_ref:
-                            zip_ref.extractall(target_extract)
+                        os.makedirs(target_extract, exist_ok=True)
+                        safe_extract_zip(archive_path, target_extract)
                     except Exception as e:
                         console.print(f"[yellow]Failed to extract {archive_name}: {e}[/yellow]")
                 elif archive_name.endswith('.tar.gz'):
                     try:
-                        with tarfile.open(archive_path, 'r:gz') as tar_ref:
-                            tar_ref.extractall(target_extract)
+                        os.makedirs(target_extract, exist_ok=True)
+                        safe_extract_tar(archive_path, target_extract)
                     except Exception as e:
                         console.print(f"[yellow]Failed to extract {archive_name}: {e}[/yellow]")
 
@@ -84,4 +95,4 @@ class PipManager(BaseManager):
         console.print(f"[cyan]Running secure pip install for {package}...[/cyan]")
         # Use current Python's pip for venv compatibility
         pip_cmd = [sys.executable, "-m", "pip"]
-        subprocess.run(pip_cmd + ["install"] + archive_paths, check=True)
+        subprocess.run(pip_cmd + ["install"] + archive_paths, check=True, timeout=600)
