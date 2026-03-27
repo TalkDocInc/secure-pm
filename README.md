@@ -25,3 +25,6 @@ Audit and install securely:
 
 Audit an entire repository's lockfiles (batch security checks):
 `secure-pm audit-all .`
+
+## License
+This project is open-source and available under the [BSD 3-Clause License](LICENSE).
