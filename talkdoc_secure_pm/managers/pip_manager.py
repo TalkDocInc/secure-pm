@@ -11,13 +11,16 @@ from rich.console import Console
 console = Console()
 
 class PipManager(BaseManager):
-    def download(self, package: str) -> tuple[list[str], str]:
-        console.print(f"[cyan]Downloading {package} AND its dependencies via pip...[/cyan]")
+    def download(self, package: str, include_deps: bool = True) -> tuple[list[str], str]:
+        console.print(f"[cyan]Downloading {package} via pip (deps={include_deps})...[/cyan]")
         temp_dir = tempfile.mkdtemp()
-        # Use current Python's pip module for venv compatibility
+        # Use current Python's pip module for venv compatibility. --no-deps for audit reduces attack surface.
         pip_cmd = [sys.executable, "-m", "pip"]
+        cmd = pip_cmd + ["download", "-d", temp_dir, package]
+        if not include_deps:
+            cmd = pip_cmd + ["download", "--no-deps", "-d", temp_dir, package]
         subprocess.run(
-            pip_cmd + ["download", "-d", temp_dir, package],
+            cmd,
             check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
         )
         

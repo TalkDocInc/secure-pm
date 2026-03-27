@@ -8,8 +8,8 @@ from rich.console import Console
 console = Console()
 
 class CargoManager(BaseManager):
-    def download(self, package: str) -> tuple[list[str], str]:
-        console.print(f"[cyan]Downloading {package} via crates.io API...[/cyan]")
+    def download(self, package: str, include_deps: bool = True) -> tuple[list[str], str]:
+        console.print(f"[cyan]Downloading {package} via crates.io API (deps={include_deps})...[/cyan]")
         temp_dir = tempfile.mkdtemp()
         
         # If the user passed "pkg@1.0.0", split it

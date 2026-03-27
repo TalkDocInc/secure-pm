@@ -7,11 +7,12 @@ from rich.console import Console
 console = Console()
 
 class NpmManager(BaseManager):
-    def download(self, package: str) -> tuple[list[str], str]:
-        console.print(f"[cyan]Downloading {package} AND dependencies via npm...[/cyan]")
+    def download(self, package: str, include_deps: bool = True) -> tuple[list[str], str]:
+        console.print(f"[cyan]Downloading {package} via npm (deps={include_deps})...[/cyan]")
         temp_dir = tempfile.mkdtemp()
         
         # Install privately to extract the full dependency tree into node_modules safely
+        # TODO: respect include_deps for audit-only to reduce surface
         subprocess.run(
             ["npm", "install", "--prefix", temp_dir, package],
             check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL

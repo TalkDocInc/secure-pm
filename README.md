@@ -4,18 +4,22 @@
 
 **Note:** This is an MVP with ongoing improvements to pinning and caching (v0.2.0+).
 
-## Installation
+## Installation (Bootstrap Security)
+The initial install of secure-pm itself uses normal `pip` (chicken-and-egg problem). We mitigate this with pre-audited pinned hashes:
+
 ```bash
 cd /path/to/secure-pm
+pip install -r requirements-secure.txt --require-hashes
 pip install -e .
-# or use the secure-pm itself after initial setup
 ```
 
+`requirements-secure.txt` contains audited pins for core deps (requests, openai, rich, etc.). Regenerate with `python -c "from talkdoc_secure_pm.managers.pip_manager import PipManager; ..." ` if needed.
+
 ## Setup
-Set your AI provider and key. Defaults updated for 2026:
+Set your AI provider and key. Defaults for 2026:
 ```bash
 export AI_PROVIDER="grok" # Supports: grok, openai, gemini, ollama
-export AI_MODEL="grok-beta" 
+export AI_MODEL="grok-4-1-fast-reasoning" 
 export XAI_API_KEY="your_key"
 # For OpenAI: export OPENAI_API_KEY=...
 ```

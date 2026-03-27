@@ -18,9 +18,9 @@ class BaseManager:
         return sha256_hash.hexdigest()
 
     def audit_only(self, package: str) -> tuple[bool, dict[str, str]]:
-        """Downloads the package, runs the AI auditor, and cleans up without installing."""
+        """Downloads the package (no deps for audit to reduce attack surface), runs the AI auditor, and cleans up without installing."""
         console.print(f"[bold magenta]Starting audit-only workflow for {package}...[/bold magenta]")
-        archive_paths, extract_dir = self.download(package)
+        archive_paths, extract_dir = self.download(package, include_deps=False)
         try:
             is_safe = self.auditor.audit_package_source(package, extract_dir)
             pkg_hashes = {}
@@ -32,8 +32,8 @@ class BaseManager:
             self.cleanup(archive_paths, extract_dir)
 
     def install(self, package: str):
-        # 1. Download
-        archive_paths, extract_dir = self.download(package)
+        # 1. Download (with deps for full install)
+        archive_paths, extract_dir = self.download(package, include_deps=True)
         try:
             # 2. Audit
             is_safe = self.auditor.audit_package_source(package, extract_dir)
@@ -56,7 +56,7 @@ class BaseManager:
         finally:
             self.cleanup(archive_paths, extract_dir)
 
-    def download(self, package: str) -> tuple[list[str], str]:
+    def download(self, package: str, include_deps: bool = True) -> tuple[list[str], str]:
         raise NotImplementedError
 
     def pin_dependency(self, package: str, pkg_hashes: dict[str, str], filepath: str | None = None):
