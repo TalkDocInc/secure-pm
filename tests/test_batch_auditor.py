@@ -74,6 +74,20 @@ class TestParseRequirements:
         result = parse_requirements("/nonexistent/path/requirements.txt")
         assert result == []
 
+    def test_strips_hash_flags(self, tmp_path):
+        """--hash=sha256:... flags from previous secure-pm runs should be stripped."""
+        req = tmp_path / "requirements.txt"
+        req.write_text("requests==2.33.0 --hash=sha256:abc123def456\n")
+        result = parse_requirements(str(req))
+        assert result == ["requests==2.33.0"]
+
+    def test_strips_multiple_hash_flags(self, tmp_path):
+        """Multiple --hash flags should all be stripped."""
+        req = tmp_path / "requirements.txt"
+        req.write_text("requests==2.33.0 --hash=sha256:aaa --hash=sha256:bbb\n")
+        result = parse_requirements(str(req))
+        assert result == ["requests==2.33.0"]
+
 
 # ---------------------------------------------------------------------------
 # parse_package_json

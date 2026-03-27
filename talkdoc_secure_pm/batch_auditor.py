@@ -21,8 +21,10 @@ def parse_requirements(filepath: str) -> list[str]:
                 if (not line or line.startswith('#') or line.startswith('-e') or
                         line.startswith('--') or '# --- Secured by secure-pm' in line):
                     continue
-                # Strip env markers and inline comments but preserve version specifiers (==, >=, etc.)
+                # Strip env markers, inline comments, and --hash flags but preserve version specifiers
                 pkg_spec = re.split(r'\s*[;#]', line)[0].strip()
+                # Remove --hash=... flags that may be present from previous secure-pm runs
+                pkg_spec = re.sub(r'\s+--hash=\S+', '', pkg_spec).strip()
                 if pkg_spec:
                     packages.append(pkg_spec)
     except Exception as e:
@@ -71,10 +73,17 @@ def run_audit(base_dir: str = "."):
     pkg_files = glob.glob(os.path.join(base_dir, "**/package.json"), recursive=True)
     cargo_files = glob.glob(os.path.join(base_dir, "**/Cargo.toml"), recursive=True)
     
-    # Filter out venvs / node_modules to avoid parsing lockfiles/built assets
-    req_files = [f for f in req_files if 'venv' not in f and 'env' not in f and 'node_modules' not in f]
-    pkg_files = [f for f in pkg_files if 'node_modules' not in f]
-    cargo_files = [f for f in cargo_files if 'target' not in f]
+    # Filter out venvs / node_modules / build dirs to avoid parsing lockfiles/built assets.
+    # Use path component matching (not substring) to avoid false positives like "/environment/".
+    def _has_component(path: str, names: set[str]) -> bool:
+        return bool(set(path.split(os.sep)) & names)
+
+    _py_skip = {'venv', '.venv', 'env', '.env', 'node_modules', '.tox', '__pycache__'}
+    _npm_skip = {'node_modules'}
+    _cargo_skip = {'target'}
+    req_files = [f for f in req_files if not _has_component(f, _py_skip)]
+    pkg_files = [f for f in pkg_files if not _has_component(f, _npm_skip)]
+    cargo_files = [f for f in cargo_files if not _has_component(f, _cargo_skip)]
     
     console.print(f"Found {len(req_files)} Py requirements, {len(pkg_files)} NPM package.json files, and {len(cargo_files)} Cargo.toml files.")
     

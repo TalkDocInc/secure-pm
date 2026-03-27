@@ -1,9 +1,9 @@
 import os
 import shutil
 import subprocess
-import tarfile
 import tempfile
 from .base_manager import BaseManager
+from ..safe_extract import safe_extract_tar
 from rich.console import Console
 
 console = Console()
@@ -17,20 +17,22 @@ class NpmManager(BaseManager):
                 # Audit-only: pack the tarball without installing deps to reduce attack surface
                 result = subprocess.run(
                     ["npm", "pack", package],
-                    check=True, cwd=temp_dir, capture_output=True, text=True
+                    check=True, cwd=temp_dir, capture_output=True, text=True,
+                    timeout=120,
                 )
                 archive_name = result.stdout.strip().split('\n')[-1]
                 archive_path = os.path.join(temp_dir, archive_name)
                 extract_dir = os.path.join(temp_dir, "extracted")
                 os.makedirs(extract_dir)
-                with tarfile.open(archive_path, 'r:gz') as tar_ref:
-                    tar_ref.extractall(extract_dir)
+                safe_extract_tar(archive_path, extract_dir)
                 return [archive_path], extract_dir
 
-            # Full install: capture full dep tree in node_modules for auditing
+            # Full install: use --ignore-scripts to prevent code execution before audit.
+            # This downloads the full dep tree without running any lifecycle hooks.
             subprocess.run(
-                ["npm", "install", "--prefix", temp_dir, package],
-                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                ["npm", "install", "--ignore-scripts", "--prefix", temp_dir, package],
+                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                timeout=300,
             )
             extract_dir = os.path.join(temp_dir, "node_modules")
             if not os.path.exists(extract_dir):
@@ -38,7 +40,8 @@ class NpmManager(BaseManager):
 
             result = subprocess.run(
                 ["npm", "pack", package],
-                check=True, cwd=temp_dir, capture_output=True, text=True
+                check=True, cwd=temp_dir, capture_output=True, text=True,
+                timeout=120,
             )
             archive_name = result.stdout.strip().split('\n')[-1]
             archive_path = os.path.join(temp_dir, archive_name)
@@ -54,4 +57,4 @@ class NpmManager(BaseManager):
     def perform_install(self, package: str, archive_paths: list[str]):
         console.print(f"[cyan]Running secure npm install for {package}...[/cyan]")
         # Install directly from the audited local tarball to guarantee the exact code is used
-        subprocess.run(["npm", "install", archive_paths[0]], check=True)
+        subprocess.run(["npm", "install", archive_paths[0]], check=True, timeout=300)

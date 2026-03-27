@@ -13,8 +13,13 @@ if [ ! -f "requirements-secure.txt" ] || [ ! -s "requirements-secure.txt" ]; the
     python generate_secure_reqs.py
 fi
 
-# Bootstrap with audited pins to mitigate supply-chain risk on first install
-pip install -r requirements-secure.txt --require-hashes --quiet || echo "Warning: Using cached audited deps"
+# Bootstrap with audited pins to mitigate supply-chain risk on first install.
+# SECURITY: Do NOT suppress hash verification failures — they indicate tampering.
+if ! pip install -r requirements-secure.txt --require-hashes --quiet; then
+    echo "ERROR: Hash verification failed for bootstrap dependencies."
+    echo "This may indicate supply-chain tampering. Re-generate with: python generate_secure_reqs.py"
+    exit 1
+fi
 pip install -e . --quiet
 
 echo ""
