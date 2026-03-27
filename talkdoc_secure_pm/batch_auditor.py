@@ -18,15 +18,13 @@ def parse_requirements(filepath: str) -> list[str]:
         with open(filepath, 'r') as f:
             for line in f:
                 line = line.strip()
-                if (not line or line.startswith('#') or line.startswith('-e') or 
-                    line.startswith('--') or '# --- Secured by secure-pm' in line):
+                if (not line or line.startswith('#') or line.startswith('-e') or
+                        line.startswith('--') or '# --- Secured by secure-pm' in line):
                     continue
-                # strip out version pins for downloading the package base logic
-                pkg = re.split(r'[=><~]+', line)[0].strip()
-                # Ignore paths or env markers for simple extraction
-                pkg = pkg.split(';')[0].strip()
-                if pkg:
-                    packages.append(pkg)
+                # Strip env markers and inline comments but preserve version specifiers (==, >=, etc.)
+                pkg_spec = re.split(r'\s*[;#]', line)[0].strip()
+                if pkg_spec:
+                    packages.append(pkg_spec)
     except Exception as e:
         console.print(f"[red]Error parsing {filepath}: {e}[/red]")
     return packages
