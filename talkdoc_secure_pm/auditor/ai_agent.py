@@ -64,8 +64,6 @@ class AIAuditor:
                         pass
         
         combined_code = "\n\n".join(code_snippets)
-        if len(combined_code) > 50000:
-             combined_code = combined_code[:50000] + "\n...[TRUNCATED overall]"
 
         prompt = f"""
 You are a top-tier security researcher and AI agent auditing the source code of a package named '{package_name}' before it is installed.
