@@ -6,8 +6,10 @@ from rich.console import Console
 
 console = Console()
 
+import re
+
 class PipManager(BaseManager):
-    def download(self, package: str) -> tuple[str, str]:
+    def download(self, package: str) -> tuple[list[str], str]:
         console.print(f"[cyan]Downloading {package} AND its dependencies via pip...[/cyan]")
         temp_dir = tempfile.mkdtemp()
         subprocess.run(
@@ -22,13 +24,12 @@ class PipManager(BaseManager):
         extract_dir = os.path.join(temp_dir, "extracted")
         os.makedirs(extract_dir)
         
-        main_archive = None
+        all_archives = []
         for archive_name in files:
             if archive_name == "extracted": continue
-            if package.lower() in archive_name.lower() or not main_archive:
-                main_archive = os.path.join(temp_dir, archive_name)
-                
             archive_path = os.path.join(temp_dir, archive_name)
+            all_archives.append(archive_path)
+            
             target_extract = os.path.join(extract_dir, archive_name)
             
             if archive_name.endswith('.whl') or archive_name.endswith('.zip'):
@@ -44,15 +45,19 @@ class PipManager(BaseManager):
                         tar_ref.extractall(target_extract)
                 except Exception: pass
                 
-        return main_archive, extract_dir
+        return all_archives, extract_dir
 
-    def pin_dependency(self, package: str, pkg_hash: str, filepath: str = None):
+    def pin_dependency(self, package: str, pkg_hashes: dict[str, str], filepath: str = None):
         target_file = filepath if filepath else "requirements.txt"
-        console.print(f"[cyan]Pinning {package} heavily in {target_file}...[/cyan]")
-        # Append to requirements.txt securely
+        console.print(f"[cyan]Pinning {package} AND its dependencies in {target_file}...[/cyan]")
+        
         with open(target_file, "a") as f:
-            f.write(f"{package} --hash=sha256:{pkg_hash}\n")
+            f.write(f"\n# --- Secured Tree for {package} ---\n")
+            for filename, h in pkg_hashes.items():
+                if filename.endswith('.whl') or filename.endswith('.tar.gz') or filename.endswith('.zip'):
+                    dep_pkg = re.split(r'-(?=\d)', filename)[0]
+                    f.write(f"{dep_pkg} --hash=sha256:{h}\n")
 
-    def perform_install(self, package: str, archive_path: str):
+    def perform_install(self, package: str, archive_paths: list[str]):
         console.print(f"[cyan]Running secure pip install for {package}...[/cyan]")
-        subprocess.run(["pip", "install", archive_path], check=True)
+        subprocess.run(["pip", "install"] + archive_paths, check=True)

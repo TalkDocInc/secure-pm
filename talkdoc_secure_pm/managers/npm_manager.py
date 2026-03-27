@@ -7,7 +7,7 @@ from rich.console import Console
 console = Console()
 
 class NpmManager(BaseManager):
-    def download(self, package: str) -> tuple[str, str]:
+    def download(self, package: str) -> tuple[list[str], str]:
         console.print(f"[cyan]Downloading {package} AND dependencies via npm...[/cyan]")
         temp_dir = tempfile.mkdtemp()
         
@@ -28,12 +28,12 @@ class NpmManager(BaseManager):
         archive_name = result.stdout.strip().split('\n')[-1]
         archive_path = os.path.join(temp_dir, archive_name)
             
-        return archive_path, extract_dir
+        return [archive_path], extract_dir
 
-    def pin_dependency(self, package: str, pkg_hash: str, filepath: str = None):
-        console.print(f"[cyan]NPM handles package-lock.json pinning automatically upon install. Hash verified: {pkg_hash}[/cyan]")
+    def pin_dependency(self, package: str, pkg_hashes: dict[str, str], filepath: str = None):
+        console.print(f"[cyan]NPM handles package-lock.json pinning automatically upon install.[/cyan]")
 
-    def perform_install(self, package: str, archive_path: str):
+    def perform_install(self, package: str, archive_paths: list[str]):
         console.print(f"[cyan]Running secure npm install for {package}...[/cyan]")
         # Install directly from the audited local tarball to guarantee the exact code is used
-        subprocess.run(["npm", "install", archive_path], check=True)
+        subprocess.run(["npm", "install", archive_paths[0]], check=True)

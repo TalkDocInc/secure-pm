@@ -8,7 +8,7 @@ from rich.console import Console
 console = Console()
 
 class CargoManager(BaseManager):
-    def download(self, package: str) -> tuple[str, str]:
+    def download(self, package: str) -> tuple[list[str], str]:
         console.print(f"[cyan]Downloading {package} via crates.io API...[/cyan]")
         temp_dir = tempfile.mkdtemp()
         
@@ -44,12 +44,12 @@ class CargoManager(BaseManager):
         except Exception as e:
             console.print(f"[yellow]Failed to extract Cargo archive: {e}[/yellow]")
             
-        return archive_path, extract_dir
+        return [archive_path], extract_dir
 
-    def pin_dependency(self, package: str, pkg_hash: str, filepath: str = None):
-        console.print(f"[cyan]Cargo automatically pins dependencies in Cargo.lock upon add. Hash verified: {pkg_hash}[/cyan]")
+    def pin_dependency(self, package: str, pkg_hashes: dict[str, str], filepath: str = None):
+        console.print(f"[cyan]Cargo automatically pins dependencies in Cargo.lock upon add.[/cyan]")
 
-    def perform_install(self, package: str, archive_path: str):
+    def perform_install(self, package: str, archive_paths: list[str]):
         console.print(f"[cyan]Running secure cargo add for {package}...[/cyan]")
         pkg_name = package.split('@')[0]
         # In a real secure workflow, we'd install from local path or enforce Cargo.lock hash
