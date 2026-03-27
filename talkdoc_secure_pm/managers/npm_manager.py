@@ -8,27 +8,25 @@ console = Console()
 
 class NpmManager(BaseManager):
     def download(self, package: str) -> tuple[str, str]:
-        console.print(f"[cyan]Downloading {package} via npm pack...[/cyan]")
+        console.print(f"[cyan]Downloading {package} AND dependencies via npm...[/cyan]")
         temp_dir = tempfile.mkdtemp()
         
-        # npm pack returns the filename of the packed tarball
+        # Install privately to extract the full dependency tree into node_modules safely
+        subprocess.run(
+            ["npm", "install", "--prefix", temp_dir, package],
+            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
+        extract_dir = os.path.join(temp_dir, "node_modules")
+        if not os.path.exists(extract_dir):
+            os.makedirs(extract_dir)
+        
+        # npm pack still used to get the standalone tarball for hash returning
         result = subprocess.run(
             ["npm", "pack", package],
             check=True, cwd=temp_dir, capture_output=True, text=True
         )
         archive_name = result.stdout.strip().split('\n')[-1]
         archive_path = os.path.join(temp_dir, archive_name)
-        
-        extract_dir = os.path.join(temp_dir, "extracted")
-        os.makedirs(extract_dir)
-        
-        # Extract the tarball
-        import tarfile
-        try:
-            with tarfile.open(archive_path, 'r:gz') as tar_ref:
-                tar_ref.extractall(extract_dir)
-        except Exception as e:
-            console.print(f"[yellow]Failed to extract NPM archive: {e}[/yellow]")
             
         return archive_path, extract_dir
 
