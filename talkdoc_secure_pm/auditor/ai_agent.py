@@ -9,6 +9,7 @@ class AIAuditor:
         self.provider = os.getenv("AI_PROVIDER", "grok").lower()
         self.client = None
         self.model = None
+        self.cache = {}  # Simple in-memory cache: package_name -> result
 
         if self.provider == "grok":
             self.api_key = os.getenv("XAI_API_KEY")
@@ -42,8 +43,13 @@ class AIAuditor:
         Reads critical files from the extracted directory and asks the LLM to audit them.
         Returns True if approved, False if malicious.
         """
+        if package_name in self.cache:
+            console.print(f"[cyan]Cache hit for {package_name}[/cyan]")
+            return self.cache[package_name]
+
         if not self.client or not self.model:
             console.print(f"[yellow]Simulating AI approval for {package_name} for testing purposes.[/yellow]")
+            self.cache[package_name] = True
             return True
 
         # Gather critical files (e.g. setup.py, package.json, Cargo.toml, install scripts)
@@ -92,12 +98,14 @@ REJECTED: <reason>
             )
             content = response.choices[0].message.content
             decision = content.strip() if content else "REJECTED: No response"
-            if decision.startswith("APPROVED"):
+            is_approved = decision.startswith("APPROVED")
+            if is_approved:
                 console.print(f"[bold green]AI Audit Passed for {package_name}[/bold green]")
-                return True
             else:
                 console.print(f"[bold red]AI Audit Failed for {package_name}: {decision}[/bold red]")
-                return False
+            self.cache[package_name] = is_approved
+            return is_approved
         except Exception as e:
             console.print(f"[bold red]AI API error: {e}[/bold red]")
+            self.cache[package_name] = False
             return False
