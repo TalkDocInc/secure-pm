@@ -30,8 +30,10 @@ class AIAuditor:
                 self.model = os.getenv("AI_MODEL", "gemini-3.1-flash-lite-preview")
         elif self.provider == "ollama":
             self.model = os.getenv("AI_MODEL", os.getenv("OLLAMA_MODEL", "llama3"))
+            ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+            ollama_api_key = os.getenv("OLLAMA_API_KEY", "ollama")
             # OpenAI client works with local Ollama 
-            self.client = OpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
+            self.client = OpenAI(base_url=ollama_base_url, api_key=ollama_api_key)
             
         if not self.client:
             console.print(f"[yellow]WARNING: Provider '{self.provider}' not configured properly. Auditing will be simulated.[/yellow]")
