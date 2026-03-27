@@ -3,6 +3,7 @@ import re
 import hashlib
 from openai import OpenAI
 from rich.console import Console
+from .cache import cache_get, cache_put
 
 console = Console()
 
@@ -142,9 +143,16 @@ class AIAuditor:
         # 3. Content-based cache key using SHA-256 (not MD5) for collision resistance
         content_hash = hashlib.sha256(combined_code.encode()).hexdigest()
         cache_key = f"{package_name}:{content_hash}"
+
+        # Check in-memory cache first, then persistent (SQLite) cache
         if cache_key in self._cache:
-            console.print(f"[cyan]Cache hit for {package_name} (hash {content_hash[:8]})[/cyan]")
+            console.print(f"[cyan]Cache hit (memory) for {package_name} (hash {content_hash[:8]})[/cyan]")
             return self._cache[cache_key]
+        persistent_result = cache_get(cache_key)
+        if persistent_result is not None:
+            console.print(f"[cyan]Cache hit (disk) for {package_name} (hash {content_hash[:8]})[/cyan]")
+            self._cache[cache_key] = persistent_result
+            return persistent_result
 
         # 4. No API key — fail-closed: reject packages when no AI audit can be performed
         if not self.client or not self.model:
@@ -154,6 +162,7 @@ class AIAuditor:
                 f"Set {self._key_env_name()} to enable auditing.[/bold red]"
             )
             self._cache[cache_key] = False
+            cache_put(cache_key, False, provider=self.provider, model=self.model or "")
             return False
 
         # 5. AI audit with prompt injection resistance
@@ -197,8 +206,10 @@ REJECTED: <reason>
             else:
                 console.print(f"[bold red]AI Audit Failed for {package_name}: {decision}[/bold red]")
             self._cache[cache_key] = is_approved
+            cache_put(cache_key, is_approved, provider=self.provider, model=self.model or "")
             return is_approved
         except Exception as e:
             console.print(f"[bold red]AI API error: {e}[/bold red]")
             self._cache[cache_key] = False
+            cache_put(cache_key, False, provider=self.provider, model=self.model or "")
             return False

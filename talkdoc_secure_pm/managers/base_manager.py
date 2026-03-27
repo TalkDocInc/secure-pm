@@ -8,6 +8,8 @@ from ..auditor.ai_agent import AIAuditor
 console = Console()
 
 class BaseManager:
+    ecosystem: str = "unknown"  # override in subclasses
+
     def __init__(self):
         self.auditor = AIAuditor()
 
@@ -36,7 +38,10 @@ class BaseManager:
         # 1. Download (with deps for full install)
         archive_paths, extract_dir = self.download(package, include_deps=True)
         try:
-            # 2. Audit each dependency in the tree independently
+            # 2. Verify upstream provenance / signatures
+            self._verify_signatures(package, archive_paths)
+
+            # 3. Audit each dependency in the tree independently
             dep_dirs = sorted(
                 d for d in os.listdir(extract_dir)
                 if os.path.isdir(os.path.join(extract_dir, d))
@@ -56,21 +61,30 @@ class BaseManager:
                 if not self.auditor.audit_package_source(package, extract_dir):
                     raise Exception(f"Package '{package}' flagged as malicious by AI Agent!")
 
-            # 3. Hash
+            # 4. Hash
             pkg_hashes = {}
             for p in archive_paths:
                 h = self.generate_hash(p)
                 pkg_hashes[os.path.basename(p)] = h
                 console.print(f"[cyan]Generated secure hash for {os.path.basename(p)}: {h}[/cyan]")
 
-            # 4. Pin
+            # 5. Pin
             self.pin_dependency(package, pkg_hashes)
 
-            # 5. Install
+            # 6. Install
             self.perform_install(package, archive_paths)
 
         finally:
             self.cleanup(archive_paths, extract_dir)
+
+    def _verify_signatures(self, package: str, archive_paths: list[str]) -> None:
+        """Verify upstream provenance for downloaded archives.
+
+        Logs warnings for verification failures but does not block
+        installation — the AI audit is the primary gate.  Override in
+        subclasses for ecosystem-specific behaviour.
+        """
+        pass  # default no-op; subclasses implement
 
     def download(self, package: str, include_deps: bool = True) -> tuple[list[str], str]:
         raise NotImplementedError

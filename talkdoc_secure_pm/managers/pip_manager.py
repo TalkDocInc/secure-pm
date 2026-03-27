@@ -6,11 +6,22 @@ import tempfile
 import re
 from .base_manager import BaseManager
 from ..safe_extract import safe_extract_zip, safe_extract_tar
+from ..signature_verifier import verify_pip_provenance
 from rich.console import Console
 
 console = Console()
 
 class PipManager(BaseManager):
+    ecosystem = "pip"
+
+    def _verify_signatures(self, package: str, archive_paths: list[str]) -> None:
+        for archive_path in archive_paths:
+            verified, msg = verify_pip_provenance(package, archive_path)
+            if verified:
+                console.print(f"[green]Provenance OK: {msg}[/green]")
+            else:
+                console.print(f"[yellow]Provenance warning: {msg}[/yellow]")
+
     def download(self, package: str, include_deps: bool = True) -> tuple[list[str], str]:
         console.print(f"[cyan]Downloading {package} via pip (deps={include_deps})...[/cyan]")
         temp_dir = tempfile.mkdtemp()
