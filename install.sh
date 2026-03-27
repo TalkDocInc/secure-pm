@@ -7,6 +7,12 @@ echo "Installing Secure Package Manager (with audited bootstrap)..."
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$DIR"
 
+# Ensure we have versioned audited pins (regenerates if missing)
+if [ ! -f "requirements-secure.txt" ] || [ ! -s "requirements-secure.txt" ]; then
+    echo "Generating audited requirements-secure.txt with versions..."
+    python generate_secure_reqs.py
+fi
+
 # Bootstrap with audited pins to mitigate supply-chain risk on first install
 pip install -r requirements-secure.txt --require-hashes --quiet || echo "Warning: Using cached audited deps"
 pip install -e . --quiet
