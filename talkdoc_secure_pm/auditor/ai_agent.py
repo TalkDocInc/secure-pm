@@ -1,46 +1,10 @@
 import os
-import re
 import hashlib
 from openai import OpenAI
 from rich.console import Console
 from .cache import cache_get, cache_put
 
 console = Console()
-
-# Static patterns that flag obvious supply-chain attack indicators before the AI call.
-# Format: (regex_pattern, human_readable_label)
-_SUSPICIOUS_PATTERNS: list[tuple[str, str]] = [
-    # Obfuscated code execution
-    (r'eval\s*\(\s*base64', "base64 eval"),
-    (r'exec\s*\(\s*base64', "base64 exec"),
-    (r'eval\s*\(\s*compile\s*\(', "eval(compile(...))"),
-    (r'exec\s*\(\s*compile\s*\(', "exec(compile(...))"),
-    (r'__import__\s*\(\s*["\']base64', "dynamic base64 import"),
-    (r'__import__\s*\(\s*["\'](?:os|subprocess|socket|ctypes)\b', "dynamic import of sensitive module"),
-    (r'importlib\.import_module\s*\(\s*["\'](?:os|subprocess|socket|ctypes)\b', "importlib import of sensitive module"),
-    (r'getattr\s*\(\s*__builtins__\s*,\s*["\'](?:eval|exec|compile)\b', "getattr builtins eval/exec"),
-    # Environment variable exfiltration
-    (r'os\.environ.*(?:requests|urllib|httpx)\.(?:get|post)', "env var exfiltration via HTTP"),
-    (r'os\.environ.*(?:urlopen|urlretrieve)', "env var exfiltration via urllib"),
-    # Subprocess / shell abuse
-    (r'subprocess\.(?:call|run|Popen).*(?:curl|wget|bash|sh\b)', "shell/curl in subprocess"),
-    (r'(?:curl|wget)\s+\S+\s*\|\s*(?:ba?sh|python)', "pipe to shell"),
-    (r'os\.system\s*\(\s*["\'].*(?:curl|wget|bash|sh\b|nc\b|ncat\b)', "os.system shell command"),
-    # Network / reverse shell indicators
-    (r'socket\.connect\s*\(\s*\(', "raw socket connection in install hook"),
-    (r'socket\.socket\s*\(.*SOCK_STREAM.*\.connect', "TCP socket connect"),
-    # Install hook abuse (npm preinstall/postinstall, setup.py)
-    (r'"(?:pre|post)install"\s*:\s*"(?!node |npm |npx ).*(?:curl|wget|bash|sh\b|node\s+-e|python)', "suspicious npm lifecycle script"),
-    # File system tampering
-    (r'open\s*\(\s*["\'](?:/etc/(?:passwd|shadow|crontab|cron\.d)|~?/\.(?:bashrc|bash_profile|profile|zshrc|ssh))', "write to sensitive system file"),
-    # Encoded payload execution
-    (r'codecs\.decode\s*\(.*["\']rot_?13["\']', "ROT13 decode (obfuscation)"),
-    (r'(?:fromhex|bytes\.fromhex)\s*\(.*(?:eval|exec|import)', "hex-encoded code execution"),
-    # ctypes for native code execution
-    (r'ctypes\.(?:CDLL|cdll|windll|WinDLL)\s*\(', "ctypes native library loading"),
-    # DNS / data exfiltration
-    (r'(?:dns\.resolver|getaddrinfo|socket\.gethostbyname).*os\.environ', "DNS-based data exfiltration"),
-]
 
 
 class AIAuditor:
@@ -83,41 +47,12 @@ class AIAuditor:
             self.provider, "the appropriate AI API key"
         )
 
-    def _static_prefilter(self, extract_dir: str) -> tuple[bool, str]:
-        """
-        Fast regex scan over ALL extracted files for known malicious patterns.
-        Runs before the (expensive) AI call. Returns (is_clean, reason).
-        """
-        critical_extensions = {'.py', '.js', '.sh', '.rs', '.ts'}
-        critical_filenames = {'setup.py', 'setup.cfg', 'pyproject.toml', 'package.json', 'Cargo.toml', 'build.rs'}
-        for root, _dirs, files in os.walk(extract_dir):
-            for file in files:
-                if not (any(file.endswith(ext) for ext in critical_extensions)
-                        or file in critical_filenames):
-                    continue
-                file_path = os.path.join(root, file)
-                try:
-                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                        content = f.read()
-                    for pattern, label in _SUSPICIOUS_PATTERNS:
-                        if re.search(pattern, content, re.IGNORECASE | re.DOTALL):
-                            return False, f"{label} in {file}"
-                except OSError:
-                    pass
-        return True, ""
-
     def audit_package_source(self, package_name: str, extract_dir: str) -> bool:
         """
-        Runs a static pre-filter then (if configured) an AI audit of the extracted source.
+        Runs an AI audit of the extracted source.
         Returns True if approved, False if malicious.
         """
-        # Static pre-filter disabled — AI audit handles security review
-        # is_clean, reason = self._static_prefilter(extract_dir)
-        # if not is_clean:
-        #     console.print(f"[bold red]Static analysis REJECTED {package_name}: {reason}[/bold red]")
-        #     return False
-
-        # 2. Gather ALL critical files for AI (no arbitrary file count limit)
+        # Gather ALL critical files for AI (no arbitrary file count limit)
         critical_extensions = ['.py', '.js', '.sh', '.rs', '.ts']
         critical_filenames = ['setup.py', 'setup.cfg', 'pyproject.toml', 'package.json', 'Cargo.toml', 'build.rs']
         code_snippets = []
