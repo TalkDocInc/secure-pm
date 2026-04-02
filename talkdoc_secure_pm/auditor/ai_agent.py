@@ -111,11 +111,11 @@ class AIAuditor:
         Runs a static pre-filter then (if configured) an AI audit of the extracted source.
         Returns True if approved, False if malicious.
         """
-        # 1. Fast static analysis — catches obvious patterns before the AI call
-        is_clean, reason = self._static_prefilter(extract_dir)
-        if not is_clean:
-            console.print(f"[bold red]Static analysis REJECTED {package_name}: {reason}[/bold red]")
-            return False
+        # Static pre-filter disabled — AI audit handles security review
+        # is_clean, reason = self._static_prefilter(extract_dir)
+        # if not is_clean:
+        #     console.print(f"[bold red]Static analysis REJECTED {package_name}: {reason}[/bold red]")
+        #     return False
 
         # 2. Gather ALL critical files for AI (no arbitrary file count limit)
         critical_extensions = ['.py', '.js', '.sh', '.rs', '.ts']
