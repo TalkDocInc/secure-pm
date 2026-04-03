@@ -1,17 +1,15 @@
 """Tests for the AI auditor: static pre-filter, content-based cache, fail-closed mode."""
 import os
-import tempfile
-import shutil
 
 import pytest
 
 # Patch out the OpenAI import so tests don't need an API key or real client
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 # Must patch env BEFORE importing AIAuditor so the constructor doesn't try to
 # connect to a real provider.
 with patch.dict(os.environ, {"AI_PROVIDER": "grok"}, clear=False):
-    from talkdoc_secure_pm.auditor.ai_agent import AIAuditor, _SUSPICIOUS_PATTERNS
+    from talkdoc_secure_pm.auditor.ai_agent import AIAuditor
 
 
 @pytest.fixture

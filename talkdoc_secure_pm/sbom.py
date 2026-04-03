@@ -9,7 +9,6 @@ Usage from CLI::
     secure-pm sbom <directory>          # scan and generate sbom.cdx.json
     secure-pm sbom <directory> -o out.json
 """
-import hashlib
 import json
 import os
 import re
