@@ -4,7 +4,7 @@ import os
 import pytest
 
 # Patch out the OpenAI import so tests don't need an API key or real client
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 # Must patch env BEFORE importing AIAuditor so the constructor doesn't try to
 # connect to a real provider.

@@ -2,34 +2,37 @@ import os
 import glob
 import json
 import re
-from rich.console import Console
-
 from talkdoc_secure_pm.managers.pip_manager import PipManager
+from . import logger
+
+
 from talkdoc_secure_pm.managers.npm_manager import NpmManager
 from talkdoc_secure_pm.managers.cargo_manager import CargoManager
 
 import tomllib  # Built-in since Python 3.11+
 
-console = Console()
 
-def parse_requirements(filepath: str) -> list[str]:
-    packages = []
-    try:
-        with open(filepath, 'r') as f:
-            for line in f:
-                line = line.strip()
-                if (not line or line.startswith('#') or line.startswith('-e') or
-                        line.startswith('--') or '# --- Secured by secure-pm' in line):
-                    continue
-                # Strip env markers, inline comments, and --hash flags but preserve version specifiers
-                pkg_spec = re.split(r'\s*[;#]', line)[0].strip()
-                # Remove --hash=... flags that may be present from previous secure-pm runs
-                pkg_spec = re.sub(r'\s+--hash=\S+', '', pkg_spec).strip()
-                if pkg_spec:
-                    packages.append(pkg_spec)
-    except Exception as e:
-        console.print(f"[red]Error parsing {filepath}: {e}[/red]")
-    return packages
+
+
+    def parse_requirements(filepath: str) -> list[str]:
+        packages = []
+        try:
+            with open(filepath, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if (not line or line.startswith('#') or line.startswith('-e') or
+                            line.startswith('--') or '# --- Secured by secure-pm' in line):
+                        continue
+                    # Strip env markers, inline comments, and --hash flags but preserve version specifiers
+                    pkg_spec = re.split(r'\s*[;#]', line)[0].strip()
+                    # Remove --hash=... flags that may be present from previous secure-pm runs
+                    pkg_spec = re.sub(r'\s+--hash=\S+', '', pkg_spec).strip()
+                    if pkg_spec:
+                        packages.append(pkg_spec)
+        except (OSError, UnicodeDecodeError) as e:
+            logger.warning(f"[red]Error parsing {filepath}: {e}[/red]")
+        return packages
+
 
 def parse_package_json(filepath: str) -> list[str]:
     packages = []
@@ -67,7 +70,8 @@ def parse_cargo_toml(filepath: str) -> list[str]:
 def run_audit(base_dir: str = "."):
     from dotenv import load_dotenv
     load_dotenv()
-    console.print(f"[bold blue]Starting REAL Batch Audit in {base_dir} using AI endpoint...[/bold blue]")
+    logger.info(f"[bold blue]Starting REAL Batch Audit in {base_dir} using AI endpoint...[/bold blue]")
+
     
     req_files = glob.glob(os.path.join(base_dir, "**/requirements.txt"), recursive=True)
     pkg_files = glob.glob(os.path.join(base_dir, "**/package.json"), recursive=True)
@@ -85,7 +89,8 @@ def run_audit(base_dir: str = "."):
     pkg_files = [f for f in pkg_files if not _has_component(f, _npm_skip)]
     cargo_files = [f for f in cargo_files if not _has_component(f, _cargo_skip)]
     
-    console.print(f"Found {len(req_files)} Py requirements, {len(pkg_files)} NPM package.json files, and {len(cargo_files)} Cargo.toml files.")
+    logger.info(f"Found {len(req_files)} Py requirements, {len(pkg_files)} NPM package.json files, and {len(cargo_files)} Cargo.toml files.")
+
     
     pip_mgr = PipManager()
     npm_mgr = NpmManager()

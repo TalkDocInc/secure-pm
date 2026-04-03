@@ -1,9 +1,6 @@
 """Tests for batch_auditor: requirements parsing, package.json, Cargo.toml."""
-import os
 import json
-import tempfile
 
-import pytest
 
 from talkdoc_secure_pm.batch_auditor import (
     parse_requirements,
