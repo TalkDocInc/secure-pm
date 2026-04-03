@@ -1,11 +1,13 @@
 import argparse
 import sys
-from rich.console import Console
+
+
 from .managers.pip_manager import PipManager
 from .managers.npm_manager import NpmManager
 from .managers.cargo_manager import CargoManager
 
-console = Console()
+from . import logger
+
 
 def main():
     from dotenv import load_dotenv
@@ -44,7 +46,8 @@ def main():
     args = parser.parse_args()
 
     if args.command == "install":
-        console.print(f"[bold blue]Starting secure install for {args.ecosystem} package: {args.package}[/bold blue]")
+        logger.info(f"[bold blue]Starting secure install for {args.ecosystem} package: {args.package}[/bold blue]")
+
 
         if args.ecosystem == "pip":
             manager = PipManager()
@@ -53,15 +56,17 @@ def main():
         elif args.ecosystem == "cargo":
             manager = CargoManager()
         else:
-            console.print(f"[bold red]Unsupported ecosystem: {args.ecosystem}[/bold red]")
+            logger.error(f"[bold red]Unsupported ecosystem: {args.ecosystem}[/bold red]")
+
             sys.exit(1)
 
         try:
             manager.install(args.package)
-            console.print(f"[bold green]Successfully installed and secured {args.package}[/bold green]")
-        except Exception as e:
-            console.print(f"[bold red]Installation failed: {e}[/bold red]")
+            logger.info(f"[bold green]Successfully installed and secured {args.package}[/bold green]")
+        except RuntimeError as e:
+            logger.error(f"[bold red]Installation failed: {e}[/bold red]")
             sys.exit(1)
+
 
     elif args.command == "audit-all":
         from .batch_auditor import run_audit
@@ -70,14 +75,25 @@ def main():
     elif args.command == "sbom":
         from .sbom import generate_sbom_from_directory
         output = generate_sbom_from_directory(args.directory, output_path=args.output)
-        console.print(f"[bold green]SBOM saved to {output}[/bold green]")
+        logger.info(f"[bold green]SBOM saved to {output}[/bold green]")
+
 
     elif args.command == "cache":
         from .auditor.cache import cache_stats, cache_clear, cache_prune
         if args.cache_action == "stats":
             stats = cache_stats()
-            console.print(f"[cyan]Audit cache statistics:[/cyan]")
-            console.print(f"  Total entries:  {stats['total']}")
+            logger.info(f"[cyan]Audit cache statistics:[/cyan]")
+            logger.info(f"  Total entries:  {stats['total']}")
+            logger.info(f"  Approved:       {stats['approved']}")
+            logger.info(f"  Rejected:       {stats['rejected']}")
+            if stats['oldest_timestamp']:
+                from datetime import datetime, timezone
+                oldest = datetime.fromtimestamp(stats['oldest_timestamp'], tz=timezone.utc)
+                logger.info(f"  Oldest entry:   {oldest.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+
+
+</xai:function_call name="edit_file">
+<parameter name="path">talkdoc_secure_pm/cli.py
             console.print(f"  Approved:       {stats['approved']}")
             console.print(f"  Rejected:       {stats['rejected']}")
             if stats['oldest_timestamp']:
@@ -86,10 +102,11 @@ def main():
                 console.print(f"  Oldest entry:   {oldest.strftime('%Y-%m-%d %H:%M:%S UTC')}")
         elif args.cache_action == "clear":
             count = cache_clear()
-            console.print(f"[yellow]Cleared {count} cache entries.[/yellow]")
+            logger.warning(f"[yellow]Cleared {count} cache entries.[/yellow]")
         elif args.cache_action == "prune":
             count = cache_prune()
-            console.print(f"[cyan]Pruned {count} expired cache entries.[/cyan]")
+            logger.info(f"[cyan]Pruned {count} expired cache entries.[/cyan]")
+
 
     elif args.command == "verify":
         _run_verify(args.ecosystem, args.package)
