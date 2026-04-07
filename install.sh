@@ -1,0 +1,34 @@
+#!/bin/bash
+set -e
+
+echo "Installing Secure Package Manager (with audited bootstrap)..."
+
+# Ensure we are in the right directory
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "$DIR"
+
+# Ensure we have versioned audited pins (regenerates if missing)
+if [ ! -f "requirements-secure.txt" ] || [ ! -s "requirements-secure.txt" ]; then
+    echo "Generating audited requirements-secure.txt with versions..."
+    python generate_secure_reqs.py
+fi
+
+# Bootstrap with audited pins to mitigate supply-chain risk on first install.
+# SECURITY: Do NOT suppress hash verification failures — they indicate tampering.
+if ! pip install -r requirements-secure.txt --require-hashes --quiet; then
+    echo "ERROR: Hash verification failed for bootstrap dependencies."
+    echo "This may indicate supply-chain tampering. Re-generate with: python generate_secure_reqs.py"
+    exit 1
+fi
+pip install -e . --quiet
+
+echo ""
+echo "==========================================================="
+echo "secure-pm installed successfully!"
+echo "Usage:"
+echo "  secure-pm install pip <package>"
+echo "  secure-pm install npm <package>"
+echo "  secure-pm install cargo <package>"
+echo "  secure-pm audit-all <directory>"
+echo "==========================================================="
+echo "AI provider keys (XAI_API_KEY, etc.) should be in your shell or .env."
