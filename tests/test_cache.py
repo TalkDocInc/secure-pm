@@ -1,9 +1,7 @@
 """Tests for the persistent SQLite audit cache."""
-import os
 import time
 
 import pytest
-from unittest.mock import patch
 
 # Use a temp directory for the cache database in tests
 @pytest.fixture(autouse=True)

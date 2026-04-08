@@ -1,11 +1,9 @@
 """Tests for PipManager: download subprocess args, temp dir cleanup, version pinning."""
 import os
-import re
 import subprocess
-import tempfile
 
 import pytest
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 
 from talkdoc_secure_pm.managers.pip_manager import PipManager
 

@@ -1,9 +1,6 @@
 """Tests for package signature / provenance verification."""
 import hashlib
-import json
-import os
 
-import pytest
 from unittest.mock import patch, MagicMock
 
 from talkdoc_secure_pm.signature_verifier import (

@@ -78,7 +78,7 @@ def main():
         from .auditor.cache import cache_stats, cache_clear, cache_prune
         if args.cache_action == "stats":
             stats = cache_stats()
-            console.print(f"[cyan]Audit cache statistics:[/cyan]")
+            console.print("[cyan]Audit cache statistics:[/cyan]")
             console.print(f"  Total entries:  {stats['total']}")
             console.print(f"  Approved:       {stats['approved']}")
             console.print(f"  Rejected:       {stats['rejected']}")
