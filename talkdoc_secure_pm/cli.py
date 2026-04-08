@@ -4,10 +4,12 @@ from rich.console import Console
 from .managers.pip_manager import PipManager
 from .managers.npm_manager import NpmManager
 from .managers.cargo_manager import CargoManager
+from . import configure_logging
 
 console = Console()
 
 def main():
+    configure_logging()
     from dotenv import load_dotenv
     load_dotenv()
     parser = argparse.ArgumentParser(

@@ -2,15 +2,18 @@ import os
 import glob
 import json
 import re
-from rich.console import Console
+# from rich.console import Console
 
 from talkdoc_secure_pm.managers.pip_manager import PipManager
+from . import logger
+
+
 from talkdoc_secure_pm.managers.npm_manager import NpmManager
 from talkdoc_secure_pm.managers.cargo_manager import CargoManager
 
 import tomllib  # Built-in since Python 3.11+
 
-console = Console()
+# console = Console()
 
 def parse_requirements(filepath: str) -> list[str]:
     packages = []
@@ -28,7 +31,7 @@ def parse_requirements(filepath: str) -> list[str]:
                 if pkg_spec:
                     packages.append(pkg_spec)
     except Exception as e:
-        console.print(f"[red]Error parsing {filepath}: {e}[/red]")
+        logger.error(f"<red>Error parsing {filepath}: {e}</red>")
     return packages
 
 def parse_package_json(filepath: str) -> list[str]:
@@ -41,7 +44,7 @@ def parse_package_json(filepath: str) -> list[str]:
             packages.extend(deps.keys())
             packages.extend(dev_deps.keys())
     except Exception as e:
-        console.print(f"[red]Error parsing {filepath}: {e}[/red]")
+        logger.error(f"<red>Error parsing {filepath}: {e}</red>")
     return packages
 
 def parse_cargo_toml(filepath: str) -> list[str]:
@@ -61,13 +64,13 @@ def parse_cargo_toml(filepath: str) -> list[str]:
                     packages.extend(dev_section.keys())
             packages.extend(deps.keys())
     except Exception as e:
-        console.print(f"[red]Error parsing {filepath}: {e}[/red]")
+        logger.error(f"<red>Error parsing {filepath}: {e}</red>")
     return list(set(packages))
 
 def run_audit(base_dir: str = "."):
     from dotenv import load_dotenv
     load_dotenv()
-    console.print(f"[bold blue]Starting REAL Batch Audit in {base_dir} using AI endpoint...[/bold blue]")
+    logger.info(f"<bold><blue>Starting REAL Batch Audit in {base_dir} using AI endpoint...</blue></bold>")
     
     req_files = glob.glob(os.path.join(base_dir, "**/requirements.txt"), recursive=True)
     pkg_files = glob.glob(os.path.join(base_dir, "**/package.json"), recursive=True)
@@ -85,7 +88,7 @@ def run_audit(base_dir: str = "."):
     pkg_files = [f for f in pkg_files if not _has_component(f, _npm_skip)]
     cargo_files = [f for f in cargo_files if not _has_component(f, _cargo_skip)]
     
-    console.print(f"Found {len(req_files)} Py requirements, {len(pkg_files)} NPM package.json files, and {len(cargo_files)} Cargo.toml files.")
+    logger.info(f"Found {len(req_files)} Py requirements, {len(pkg_files)} NPM package.json files, and {len(cargo_files)} Cargo.toml files.")
     
     pip_mgr = PipManager()
     npm_mgr = NpmManager()
@@ -96,7 +99,7 @@ def run_audit(base_dir: str = "."):
     
     # Audit Python
     for f in req_files:
-        console.print(f"\\n[cyan]Parsing {f}[/cyan]")
+        logger.info(f"<cyan>Parsing {f}</cyan>")
         pkgs = parse_requirements(f)
         for p in pkgs:
             try:
@@ -107,12 +110,12 @@ def run_audit(base_dir: str = "."):
                     secure_file = f + ".secure"
                     pip_mgr.pin_dependency(p, pkg_hash, filepath=secure_file)
             except Exception as e:
-                console.print(f"[yellow]Failed to audit pip package {p}: {e}[/yellow]")
+                logger.warning(f"<yellow>Failed to audit pip package {p}: {e}</yellow>")
             total_audited += 1
 
     # Audit NPM
     for f in pkg_files:
-        console.print(f"\\n[cyan]Parsing {f}[/cyan]")
+        logger.info(f"<cyan>Parsing {f}</cyan>")
         pkgs = parse_package_json(f)
         for p in pkgs:
             try:
@@ -120,12 +123,12 @@ def run_audit(base_dir: str = "."):
                 if not is_safe:
                     unsafe_packages.append((f, p))
             except Exception as e:
-                console.print(f"[yellow]Failed to audit npm package {p}: {e}[/yellow]")
+                logger.warning(f"<yellow>Failed to audit npm package {p}: {e}</yellow>")
             total_audited += 1
 
     # Audit Cargo
     for f in cargo_files:
-        console.print(f"\\n[cyan]Parsing {f}[/cyan]")
+        logger.info(f"<cyan>Parsing {f}</cyan>")
         pkgs = parse_cargo_toml(f)
         for p in pkgs:
             try:
@@ -133,18 +136,20 @@ def run_audit(base_dir: str = "."):
                 if not is_safe:
                     unsafe_packages.append((f, p))
             except Exception as e:
-                console.print(f"[yellow]Failed to audit cargo package {p}: {e}[/yellow]")
+                logger.warning(f"<yellow>Failed to audit cargo package {p}: {e}</yellow>")
             total_audited += 1
 
-    console.print(f"\\n[bold green]Audit Complete. Total packages audited: {total_audited}[/bold green]")
+    logger.info(f"<bold><green>Audit Complete. Total packages audited: {total_audited}</green></bold>")
     if unsafe_packages:
-        console.print("[bold red]WARNING: The following packages were flagged as unsafe by the AI:[/bold red]")
+        logger.warning("<bold><red>WARNING: The following packages were flagged as unsafe by the AI:</red></bold>")
         for f, p in unsafe_packages:
-            console.print(f" - {p} (from {f})")
+            logger.warning(f" - {p} (from {f})")
     else:
-        console.print("[bold green]All packages appear safe![/bold green]")
+        logger.info("<bold><green>All packages appear safe!</green></bold>")
 
 if __name__ == "__main__":
+    from . import configure_logging
+    configure_logging()
     import sys
     directory = sys.argv[1] if len(sys.argv) > 1 else "."
     run_audit(directory)
