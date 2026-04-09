@@ -3,7 +3,6 @@ import json
 import os
 
 import pytest
-from unittest.mock import MagicMock
 
 from talkdoc_secure_pm.managers.cargo_manager import CargoManager
 

@@ -4,10 +4,7 @@ import time
 import pytest
 
 # Use a temp directory for the cache database in tests
-@pytest.fixture(autouse=True)
-def temp_cache_dir(tmp_path, monkeypatch):
-    monkeypatch.setenv("SECURE_PM_CACHE_DIR", str(tmp_path))
-
+import pytest
 from talkdoc_secure_pm.auditor.cache import (
     cache_get,
     cache_put,
@@ -16,6 +13,10 @@ from talkdoc_secure_pm.auditor.cache import (
     cache_stats,
     _MAX_AGE_SECONDS,
 )
+
+@pytest.fixture(autouse=True)
+def temp_cache_dir(tmp_path, monkeypatch):
+    monkeypatch.setenv("SECURE_PM_CACHE_DIR", str(tmp_path))
 
 
 class TestCacheBasicOps:
