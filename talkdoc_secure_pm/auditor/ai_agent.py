@@ -70,7 +70,7 @@ class AIAuditor:
                             continue  # skip files that would exceed token budget
                         code_snippets.append(f"File: {file}\n```\n{content}\n```")
                         total_chars += len(content)
-                    except Exception:
+                    except (IOError, OSError, UnicodeDecodeError):
                         pass
 
         combined_code = "\n\n".join(code_snippets)
@@ -143,7 +143,7 @@ REJECTED: <reason>
             self._cache[cache_key] = is_approved
             cache_put(cache_key, is_approved, provider=self.provider, model=self.model or "")
             return is_approved
-        except Exception as e:
+        except (RuntimeError, ValueError, KeyError) as e:
             console.print(f"[bold red]AI API error: {e}[/bold red]")
             self._cache[cache_key] = False
             cache_put(cache_key, False, provider=self.provider, model=self.model or "")

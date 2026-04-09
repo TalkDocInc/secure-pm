@@ -46,7 +46,7 @@ def verify_pip_provenance(package: str, archive_path: str) -> tuple[bool, str]:
         resp = http_requests.get(f"{_PYPI_URL}/pypi/{pkg_name}/json", timeout=30)
         resp.raise_for_status()
         data = resp.json()
-    except Exception as e:
+    except (http_requests.RequestException, ValueError) as e:
         return False, f"Failed to fetch PyPI metadata for {pkg_name}: {e}"
 
     # Search all releases for a matching filename
@@ -109,7 +109,7 @@ def verify_npm_signatures(package: str, temp_dir: str | None = None) -> tuple[bo
         return False, "npm not found — cannot verify npm signatures"
     except subprocess.TimeoutExpired:
         return False, "npm audit signatures timed out"
-    except Exception as e:
+    except (OSError, RuntimeError) as e:
         return False, f"npm signature check error: {e}"
 
 
@@ -156,7 +156,7 @@ def verify_cargo_checksum(package: str, archive_path: str) -> tuple[bool, str]:
         resp.raise_for_status()
         data = resp.json()
         expected_cksum = data.get("version", {}).get("checksum", "")
-    except Exception as e:
+    except (http_requests.RequestException, ValueError) as e:
         return False, f"Failed to fetch crates.io checksum for {pkg_name}@{version}: {e}"
 
     if not expected_cksum:

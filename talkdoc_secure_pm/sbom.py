@@ -9,7 +9,6 @@ Usage from CLI::
     secure-pm sbom <directory>          # scan and generate sbom.cdx.json
     secure-pm sbom <directory> -o out.json
 """
-import hashlib
 import json
 import os
 import re
@@ -153,7 +152,7 @@ def generate_sbom_from_directory(base_dir: str, output_path: str = "sbom.cdx.jso
                             "ecosystem": "pip", "hashes": hashes,
                             "audit_status": "catalogued",
                         })
-        except Exception:
+        except (IOError, OSError, ValueError):
             pass
 
     # --- NPM package.json ---
@@ -171,7 +170,7 @@ def generate_sbom_from_directory(base_dir: str, output_path: str = "sbom.cdx.jso
                         "ecosystem": "npm",
                         "audit_status": "catalogued",
                     })
-        except Exception:
+        except (IOError, json.JSONDecodeError, ValueError):
             pass
 
     # --- Cargo.toml ---
@@ -193,7 +192,7 @@ def generate_sbom_from_directory(base_dir: str, output_path: str = "sbom.cdx.jso
                         "ecosystem": "cargo",
                         "audit_status": "catalogued",
                     })
-        except Exception:
+        except (IOError, OSError, ValueError):
             pass
 
     return generate_sbom(packages, output_path=output_path, project_name=os.path.basename(os.path.abspath(base_dir)))
