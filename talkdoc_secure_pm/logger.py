@@ -1,6 +1,43 @@
-import logging
+from rich.console import Console
+import re
+import os
 
-try:
-    from loguru import logger
-except ImportError:
-    logger = logging.getLogger(__name__)
+console = Console()
+
+class RichLogger:
+    def __init__(self):
+        self.console = Console()
+
+    def _parse_markup(self, text):
+        # Simple parser for common rich markup
+        # Replace <color>text</color> with [color]text[/color]
+        def repl_color(match):
+            color = match.group(1)
+            text = match.group(2)
+            return f"[{color}]{text}[/{color}]"
+        
+        text = re.sub(r'<([a-z]+)>(.*?)</\1>', repl_color, text, flags=re.DOTALL)
+        # Fix bold regex error in previous
+        text = re.sub(r'<bold>(.*?)</bold>', r'[bold]\1[/bold]', text, flags=re.DOTALL)
+        text = text.replace('<', '<').replace('>', '>')
+        return text
+
+    def info(self, text):
+        formatted = self._parse_markup(str(text))
+        self.console.print(formatted, style="bold blue")
+
+    def error(self, text):
+        formatted = self._parse_markup(str(text))
+        self.console.print(formatted, style="bold red")
+
+    def warning(self, text):
+        formatted = self._parse_markup(str(text))
+        self.console.print(formatted, style="bold yellow")
+
+logger = RichLogger()
+
+def configure_logging():
+    """Configure logging setup."""
+    os.environ.setdefault('RICH_TRACEBACK', '1')
+    pass
+
