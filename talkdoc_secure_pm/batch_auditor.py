@@ -2,6 +2,7 @@ import os
 import glob
 import json
 import re
+import subprocess
 # from rich.console import Console
 
 from talkdoc_secure_pm.managers.pip_manager import PipManager
