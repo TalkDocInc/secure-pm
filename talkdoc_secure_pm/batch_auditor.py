@@ -30,7 +30,7 @@ def parse_requirements(filepath: str) -> list[str]:
                 pkg_spec = re.sub(r'\s+--hash=\S+', '', pkg_spec).strip()
                 if pkg_spec:
                     packages.append(pkg_spec)
-    except Exception as e:
+    except (IOError, OSError) as e:
         logger.error(f"<red>Error parsing {filepath}: {e}</red>")
     return packages
 
@@ -43,7 +43,7 @@ def parse_package_json(filepath: str) -> list[str]:
             dev_deps = data.get('devDependencies', {})
             packages.extend(deps.keys())
             packages.extend(dev_deps.keys())
-    except Exception as e:
+    except (IOError, OSError, json.JSONDecodeError, ValueError) as e:
         logger.error(f"<red>Error parsing {filepath}: {e}</red>")
     return packages
 
@@ -63,7 +63,7 @@ def parse_cargo_toml(filepath: str) -> list[str]:
                 if isinstance(dev_section, dict):
                     packages.extend(dev_section.keys())
             packages.extend(deps.keys())
-    except Exception as e:
+    except (IOError, OSError, ValueError) as e:
         logger.error(f"<red>Error parsing {filepath}: {e}</red>")
     return list(set(packages))
 
@@ -109,7 +109,7 @@ def run_audit(base_dir: str = "."):
                 else:
                     secure_file = f + ".secure"
                     pip_mgr.pin_dependency(p, pkg_hash, filepath=secure_file)
-            except Exception as e:
+            except (RuntimeError, subprocess.CalledProcessError, OSError) as e:
                 logger.warning(f"<yellow>Failed to audit pip package {p}: {e}</yellow>")
             total_audited += 1
 
@@ -122,7 +122,7 @@ def run_audit(base_dir: str = "."):
                 is_safe, pkg_hash = npm_mgr.audit_only(p)
                 if not is_safe:
                     unsafe_packages.append((f, p))
-            except Exception as e:
+            except (RuntimeError, subprocess.CalledProcessError, OSError) as e:
                 logger.warning(f"<yellow>Failed to audit npm package {p}: {e}</yellow>")
             total_audited += 1
 
@@ -135,7 +135,7 @@ def run_audit(base_dir: str = "."):
                 is_safe, pkg_hash = cargo_mgr.audit_only(p)
                 if not is_safe:
                     unsafe_packages.append((f, p))
-            except Exception as e:
+            except (RuntimeError, subprocess.CalledProcessError, OSError) as e:
                 logger.warning(f"<yellow>Failed to audit cargo package {p}: {e}</yellow>")
             total_audited += 1
 

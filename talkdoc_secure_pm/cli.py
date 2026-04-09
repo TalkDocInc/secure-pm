@@ -1,5 +1,6 @@
 import argparse
 import sys
+import subprocess
 from rich.console import Console
 from .managers.pip_manager import PipManager
 from .managers.npm_manager import NpmManager
@@ -61,7 +62,7 @@ def main():
         try:
             manager.install(args.package)
             console.print(f"[bold green]Successfully installed and secured {args.package}[/bold green]")
-        except Exception as e:
+        except (RuntimeError, OSError, subprocess.CalledProcessError) as e:
             console.print(f"[bold red]Installation failed: {e}[/bold red]")
             sys.exit(1)
 

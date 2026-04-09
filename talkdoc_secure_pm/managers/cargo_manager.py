@@ -52,7 +52,7 @@ class CargoManager(BaseManager):
             all_archives.append(primary_archive)
             try:
                 safe_extract_tar(primary_archive, extract_dir)
-            except Exception as e:
+            except (OSError, RuntimeError) as e:
                 console.print(f"[yellow]Failed to extract {pkg_name}-{version}: {e}[/yellow]")
 
             # If include_deps, also download transitive dependencies
@@ -63,11 +63,11 @@ class CargoManager(BaseManager):
                         dep_archive = self._download_crate(dep_name, dep_version, temp_dir)
                         all_archives.append(dep_archive)
                         safe_extract_tar(dep_archive, extract_dir)
-                    except Exception as e:
+                    except (OSError, RuntimeError) as e:
                         console.print(f"[yellow]Failed to download/extract dep {dep_name}@{dep_version}: {e}[/yellow]")
 
             return all_archives, extract_dir
-        except Exception:
+        except (OSError, RuntimeError):
             shutil.rmtree(temp_dir, ignore_errors=True)
             raise
 
@@ -103,7 +103,7 @@ class CargoManager(BaseManager):
                 f"https://crates.io/api/v1/crates/{name}/{version}/dependencies",
                 timeout=30, headers=_CRATES_IO_UA,
             ).json()
-        except Exception as e:
+        except (http_requests.RequestException, ValueError) as e:
             console.print(f"[yellow]Failed to resolve deps for {name}@{version}: {e}[/yellow]")
             return result
 
@@ -137,7 +137,7 @@ class CargoManager(BaseManager):
                 timeout=30, headers=_CRATES_IO_UA,
             ).json()
             return resp.get("crate", {}).get("max_version")
-        except Exception:
+        except (http_requests.RequestException, ValueError):
             return None
 
     def pin_dependency(self, package: str, pkg_hashes: dict[str, str], filepath: str | None = None):

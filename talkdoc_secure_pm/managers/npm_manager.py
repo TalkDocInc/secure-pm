@@ -58,7 +58,7 @@ class NpmManager(BaseManager):
             archive_path = os.path.join(temp_dir, archive_name)
 
             return [archive_path], extract_dir
-        except Exception:
+        except (OSError, RuntimeError):
             shutil.rmtree(temp_dir, ignore_errors=True)
             raise
 

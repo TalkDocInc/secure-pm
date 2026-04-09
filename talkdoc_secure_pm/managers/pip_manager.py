@@ -57,17 +57,17 @@ class PipManager(BaseManager):
                     try:
                         os.makedirs(target_extract, exist_ok=True)
                         safe_extract_zip(archive_path, target_extract)
-                    except Exception as e:
+                    except (OSError, RuntimeError, Exception) as e:
                         console.print(f"[yellow]Failed to extract {archive_name}: {e}[/yellow]")
                 elif archive_name.endswith('.tar.gz'):
                     try:
                         os.makedirs(target_extract, exist_ok=True)
                         safe_extract_tar(archive_path, target_extract)
-                    except Exception as e:
+                    except (OSError, RuntimeError, Exception) as e:
                         console.print(f"[yellow]Failed to extract {archive_name}: {e}[/yellow]")
 
             return all_archives, extract_dir
-        except Exception:
+        except (OSError, RuntimeError):
             shutil.rmtree(temp_dir, ignore_errors=True)
             raise
 

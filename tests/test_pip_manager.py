@@ -28,7 +28,7 @@ class TestDownloadArgs:
         mock_run.side_effect = self._fake_download(tmp_path)
         try:
             mgr.download("requests", include_deps=True)
-        except Exception:
+        except (subprocess.CalledProcessError, OSError):
             pass
         cmd = mock_run.call_args[0][0]
         assert "--no-deps" not in cmd
@@ -39,7 +39,7 @@ class TestDownloadArgs:
         mock_run.side_effect = self._fake_download(tmp_path)
         try:
             mgr.download("requests", include_deps=False)
-        except Exception:
+        except (subprocess.CalledProcessError, OSError):
             pass
         cmd = mock_run.call_args[0][0]
         assert "--no-deps" in cmd
@@ -51,7 +51,7 @@ class TestDownloadArgs:
         mock_run.side_effect = self._fake_download(tmp_path)
         try:
             mgr.download("requests", include_deps=True)
-        except Exception:
+        except (subprocess.CalledProcessError, OSError):
             pass
         cmd = mock_run.call_args[0][0]
         assert cmd[0] == sys.executable

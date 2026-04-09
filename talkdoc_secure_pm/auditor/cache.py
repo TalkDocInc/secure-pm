@@ -55,7 +55,7 @@ def cache_get(cache_key: str) -> bool | None:
         if time.time() - created_at > _MAX_AGE_SECONDS:
             return None  # expired
         return bool(is_approved)
-    except Exception:
+    except sqlite3.Error:
         return None
 
 
@@ -71,7 +71,7 @@ def cache_put(cache_key: str, is_approved: bool, provider: str = "", model: str 
         )
         conn.commit()
         conn.close()
-    except Exception:
+    except sqlite3.Error:
         pass  # cache write failure is non-fatal
 
 
@@ -84,7 +84,7 @@ def cache_clear() -> int:
         conn.commit()
         conn.close()
         return count
-    except Exception:
+    except sqlite3.Error:
         return 0
 
 
@@ -98,7 +98,7 @@ def cache_prune() -> int:
         conn.commit()
         conn.close()
         return count
-    except Exception:
+    except sqlite3.Error:
         return 0
 
 
@@ -118,5 +118,5 @@ def cache_stats() -> dict:
             "rejected": rejected,
             "oldest_timestamp": oldest,
         }
-    except Exception:
+    except sqlite3.Error:
         return {"total": 0, "approved": 0, "rejected": 0, "oldest_timestamp": None}
