@@ -132,3 +132,4 @@ class TestParseCargoToml:
     def test_missing_file(self):
         result = parse_cargo_toml("/nonexistent/Cargo.toml")
         assert result == []
+

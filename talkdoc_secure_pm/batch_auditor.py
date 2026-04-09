@@ -8,7 +8,6 @@ import subprocess
 from talkdoc_secure_pm.managers.pip_manager import PipManager
 from . import logger
 
-
 from talkdoc_secure_pm.managers.npm_manager import NpmManager
 from talkdoc_secure_pm.managers.cargo_manager import CargoManager
 

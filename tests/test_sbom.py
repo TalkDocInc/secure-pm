@@ -163,3 +163,4 @@ class TestGenerateSbomFromDirectory:
 
         names = [c["name"] for c in sbom["components"]]
         assert "should-be-skipped" not in names
+

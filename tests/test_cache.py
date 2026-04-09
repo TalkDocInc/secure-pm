@@ -2,9 +2,6 @@
 import time
 
 import pytest
-
-# Use a temp directory for the cache database in tests
-import pytest
 from talkdoc_secure_pm.auditor.cache import (
     cache_get,
     cache_put,
@@ -83,3 +80,4 @@ class TestCacheStats:
     def test_empty_stats(self):
         stats = cache_stats()
         assert stats["total"] == 0
+
