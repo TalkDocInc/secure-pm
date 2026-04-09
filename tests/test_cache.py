@@ -1,9 +1,7 @@
 """Tests for the persistent SQLite audit cache."""
-import os
 import time
 
 import pytest
-from unittest.mock import patch
 
 # Use a temp directory for the cache database in tests
 @pytest.fixture(autouse=True)
@@ -45,7 +43,6 @@ class TestCacheExpiry:
     def test_expired_entry_returns_none(self, monkeypatch):
         cache_put("old:pkg", True)
         # Simulate time passing beyond MAX_AGE
-        import talkdoc_secure_pm.auditor.cache as cache_mod
         original_time = time.time
         monkeypatch.setattr(time, "time", lambda: original_time() + _MAX_AGE_SECONDS + 1)
         assert cache_get("old:pkg") is None
@@ -65,7 +62,6 @@ class TestCachePrune:
     def test_prune_removes_expired(self, monkeypatch):
         cache_put("old:1", True)
         # Monkey-patch time for the prune check
-        import talkdoc_secure_pm.auditor.cache as cache_mod
         original_time = time.time
         monkeypatch.setattr(time, "time", lambda: original_time() + _MAX_AGE_SECONDS + 1)
         count = cache_prune()
