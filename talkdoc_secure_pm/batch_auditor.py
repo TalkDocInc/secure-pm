@@ -5,7 +5,7 @@ import re
 # from rich.console import Console
 
 from talkdoc_secure_pm.managers.pip_manager import PipManager
-from . import logger
+from .logger import logger
 
 
 from talkdoc_secure_pm.managers.npm_manager import NpmManager
@@ -148,7 +148,7 @@ def run_audit(base_dir: str = "."):
         logger.info("<bold><green>All packages appear safe!</green></bold>")
 
 if __name__ == "__main__":
-    from . import configure_logging
+    from .logger import configure_logging
     configure_logging()
     import sys
     directory = sys.argv[1] if len(sys.argv) > 1 else "."

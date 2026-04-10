@@ -1,43 +1,50 @@
-from rich.console import Console
-import re
-import os
+"""Central logging helpers for the talkdoc_secure_pm package."""
 
-console = Console()
+from __future__ import annotations
 
-class RichLogger:
-    def __init__(self):
-        self.console = Console()
+import logging
+import sys
 
-    def _parse_markup(self, text):
-        # Simple parser for common rich markup
-        # Replace <color>text</color> with [color]text[/color]
-        def repl_color(match):
-            color = match.group(1)
-            text = match.group(2)
-            return f"[{color}]{text}[/{color}]"
-        
-        text = re.sub(r'<([a-z]+)>(.*?)</\1>', repl_color, text, flags=re.DOTALL)
-        # Fix bold regex error in previous
-        text = re.sub(r'<bold>(.*?)</bold>', r'[bold]\1[/bold]', text, flags=re.DOTALL)
-        text = text.replace('<', '<').replace('>', '>')
-        return text
+__all__ = ["logger", "configure_logging", "HAS_LOGURU"]
 
-    def info(self, text):
-        formatted = self._parse_markup(str(text))
-        self.console.print(formatted, style="bold blue")
+try:
+    from loguru import logger as _loguru_logger
+except ImportError:
+    _loguru_logger = None
+    HAS_LOGURU = False
+else:
+    HAS_LOGURU = True
 
-    def error(self, text):
-        formatted = self._parse_markup(str(text))
-        self.console.print(formatted, style="bold red")
 
-    def warning(self, text):
-        formatted = self._parse_markup(str(text))
-        self.console.print(formatted, style="bold yellow")
+def _build_stdlib_logger() -> logging.Logger:
+    logger = logging.getLogger("talkdoc_secure_pm")
+    if not logger.handlers:
+        handler = logging.StreamHandler(sys.stderr)
+        handler.setFormatter(
+            logging.Formatter(
+                fmt="%(asctime)s | %(levelname)s | %(name)s:%(lineno)d | %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
+            )
+        )
+        logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    return logger
 
-logger = RichLogger()
 
-def configure_logging():
-    """Configure logging setup."""
-    os.environ.setdefault('RICH_TRACEBACK', '1')
-    pass
+logger = _loguru_logger if HAS_LOGURU else _build_stdlib_logger()
+
+
+def configure_logging(level: str = "INFO", diagnose: bool = False, colorize: bool = True) -> None:
+    """Configure package logging when explicitly requested by the CLI."""
+    if HAS_LOGURU:
+        _loguru_logger.remove()
+        _loguru_logger.add(
+            sys.stderr,
+            format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {name}:{line} | {message}",
+            level=level,
+            colorize=colorize,
+            diagnose=diagnose,
+        )
+    else:
+        logger.setLevel(getattr(logging, level.upper(), logging.INFO))
 

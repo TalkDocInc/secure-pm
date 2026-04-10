@@ -4,7 +4,7 @@ from rich.console import Console
 from .managers.pip_manager import PipManager
 from .managers.npm_manager import NpmManager
 from .managers.cargo_manager import CargoManager
-from . import configure_logging
+from .logger import configure_logging
 
 console = Console()
 
