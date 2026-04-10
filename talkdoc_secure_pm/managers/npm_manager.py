@@ -58,7 +58,7 @@ class NpmManager(BaseManager):
             archive_path = os.path.join(temp_dir, archive_name)
 
             return [archive_path], extract_dir
-        except Exception:
+        except (subprocess.CalledProcessError, OSError, shutil.Error):
             shutil.rmtree(temp_dir, ignore_errors=True)
             raise
 
@@ -120,3 +120,4 @@ class NpmManager(BaseManager):
         console.print(f"[cyan]Running secure npm install for {package}...[/cyan]")
         # Install directly from the audited local tarball to guarantee the exact code is used
         subprocess.run(["npm", "install", archive_paths[0]], check=True, timeout=300)
+

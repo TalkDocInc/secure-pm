@@ -152,7 +152,7 @@ def generate_sbom_from_directory(base_dir: str, output_path: str = "sbom.cdx.jso
                             "ecosystem": "pip", "hashes": hashes,
                             "audit_status": "catalogued",
                         })
-        except Exception:
+        except (OSError, UnicodeDecodeError):
             pass
 
     # --- NPM package.json ---
@@ -170,7 +170,7 @@ def generate_sbom_from_directory(base_dir: str, output_path: str = "sbom.cdx.jso
                         "ecosystem": "npm",
                         "audit_status": "catalogued",
                     })
-        except Exception:
+        except json.JSONDecodeError:
             pass
 
     # --- Cargo.toml ---
@@ -192,7 +192,8 @@ def generate_sbom_from_directory(base_dir: str, output_path: str = "sbom.cdx.jso
                         "ecosystem": "cargo",
                         "audit_status": "catalogued",
                     })
-        except Exception:
+        except tomllib.TOMLDecodeError:
             pass
 
     return generate_sbom(packages, output_path=output_path, project_name=os.path.basename(os.path.abspath(base_dir)))
+

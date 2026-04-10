@@ -70,7 +70,7 @@ class AIAuditor:
                             continue  # skip files that would exceed token budget
                         code_snippets.append(f"File: {file}\n```\n{content}\n```")
                         total_chars += len(content)
-                    except Exception:
+                    except (OSError, UnicodeDecodeError):
                         pass
 
         combined_code = "\n\n".join(code_snippets)
@@ -148,3 +148,4 @@ REJECTED: <reason>
             self._cache[cache_key] = False
             cache_put(cache_key, False, provider=self.provider, model=self.model or "")
             return False
+

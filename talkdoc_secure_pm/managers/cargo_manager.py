@@ -67,7 +67,7 @@ class CargoManager(BaseManager):
                         console.print(f"[yellow]Failed to download/extract dep {dep_name}@{dep_version}: {e}[/yellow]")
 
             return all_archives, extract_dir
-        except Exception:
+        except (requests.RequestException, OSError, shutil.Error):
             shutil.rmtree(temp_dir, ignore_errors=True)
             raise
 
@@ -103,7 +103,7 @@ class CargoManager(BaseManager):
                 f"https://crates.io/api/v1/crates/{name}/{version}/dependencies",
                 timeout=30, headers=_CRATES_IO_UA,
             ).json()
-        except Exception as e:
+        except requests.RequestException as e:
             console.print(f"[yellow]Failed to resolve deps for {name}@{version}: {e}[/yellow]")
             return result
 
@@ -137,7 +137,7 @@ class CargoManager(BaseManager):
                 timeout=30, headers=_CRATES_IO_UA,
             ).json()
             return resp.get("crate", {}).get("max_version")
-        except Exception:
+        except requests.RequestException:
             return None
 
     def pin_dependency(self, package: str, pkg_hashes: dict[str, str], filepath: str | None = None):
@@ -204,3 +204,4 @@ class CargoManager(BaseManager):
             )
         finally:
             shutil.rmtree(extract_dir, ignore_errors=True)
+

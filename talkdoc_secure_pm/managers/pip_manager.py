@@ -67,7 +67,7 @@ class PipManager(BaseManager):
                         console.print(f"[yellow]Failed to extract {archive_name}: {e}[/yellow]")
 
             return all_archives, extract_dir
-        except Exception:
+        except (subprocess.CalledProcessError, shutil.Error, OSError):
             shutil.rmtree(temp_dir, ignore_errors=True)
             raise
 
@@ -96,3 +96,4 @@ class PipManager(BaseManager):
         # Use current Python's pip for venv compatibility
         pip_cmd = [sys.executable, "-m", "pip"]
         subprocess.run(pip_cmd + ["install"] + archive_paths, check=True, timeout=600)
+
