@@ -8,10 +8,7 @@ from unittest.mock import patch, MagicMock
 from talkdoc_secure_pm.managers.pip_manager import PipManager
 
 
-@pytest.fixture
-def mgr():
-    """PipManager with a mocked-out auditor (no real AI calls)."""
-    m = PipManager()
+
     m.auditor.client = None
     m.auditor.model = None
     return m
