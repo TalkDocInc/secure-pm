@@ -4,7 +4,7 @@ import re
 import shutil
 import subprocess
 import tempfile
-import requests as http_requests
+import requests
 from .base_manager import BaseManager
 from ..safe_extract import safe_extract_tar
 from ..signature_verifier import verify_cargo_checksum
@@ -35,7 +35,7 @@ class CargoManager(BaseManager):
             version = parts[1] if len(parts) > 1 else None
 
             if not version:
-                resp = http_requests.get(
+                resp = requests.get(
                     f"https://crates.io/api/v1/crates/{pkg_name}",
                     timeout=30, headers=_CRATES_IO_UA,
                 ).json()
@@ -80,7 +80,7 @@ class CargoManager(BaseManager):
         if os.path.exists(archive_path):
             return archive_path  # already downloaded (shared transitive dep)
 
-        r = http_requests.get(url, stream=True, timeout=60, headers=_CRATES_IO_UA)
+        r = requests.get(url, stream=True, timeout=60, headers=_CRATES_IO_UA)
         r.raise_for_status()
         with open(archive_path, 'wb') as f:
             for chunk in r.iter_content(chunk_size=8192):
@@ -99,7 +99,7 @@ class CargoManager(BaseManager):
         result: list[tuple[str, str]] = []
 
         try:
-            resp = http_requests.get(
+            resp = requests.get(
                 f"https://crates.io/api/v1/crates/{name}/{version}/dependencies",
                 timeout=30, headers=_CRATES_IO_UA,
             ).json()
@@ -132,7 +132,7 @@ class CargoManager(BaseManager):
         doing full semver constraint solving against *_req*.
         """
         try:
-            resp = http_requests.get(
+            resp = requests.get(
                 f"https://crates.io/api/v1/crates/{name}",
                 timeout=30, headers=_CRATES_IO_UA,
             ).json()
