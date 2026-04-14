@@ -1,12 +1,13 @@
 import argparse
 import sys
-from rich.console import Console
 from .managers.pip_manager import PipManager
 from .managers.npm_manager import NpmManager
 from .managers.cargo_manager import CargoManager
-from . import configure_logging
+from . import logger, configure_logging, HAS_LOGURU
 
-console = Console()
+# Use logger.opt(colors=True) for loguru colour markup; fall back to plain logger.
+_log = logger.opt(colors=True) if HAS_LOGURU else logger
+
 
 def main():
     configure_logging()
@@ -46,7 +47,7 @@ def main():
     args = parser.parse_args()
 
     if args.command == "install":
-        console.print(f"[bold blue]Starting secure install for {args.ecosystem} package: {args.package}[/bold blue]")
+        _log.info(f"<bold><blue>Starting secure install for {args.ecosystem} package: {args.package}</blue></bold>")
 
         if args.ecosystem == "pip":
             manager = PipManager()
@@ -55,14 +56,14 @@ def main():
         elif args.ecosystem == "cargo":
             manager = CargoManager()
         else:
-            console.print(f"[bold red]Unsupported ecosystem: {args.ecosystem}[/bold red]")
+            _log.error(f"<bold><red>Unsupported ecosystem: {args.ecosystem}</red></bold>")
             sys.exit(1)
 
         try:
             manager.install(args.package)
-            console.print(f"[bold green]Successfully installed and secured {args.package}[/bold green]")
+            _log.info(f"<bold><green>Successfully installed and secured {args.package}</green></bold>")
         except Exception as e:
-            console.print(f"[bold red]Installation failed: {e}[/bold red]")
+            _log.error(f"<bold><red>Installation failed: {e}</red></bold>")
             sys.exit(1)
 
     elif args.command == "audit-all":
@@ -72,26 +73,26 @@ def main():
     elif args.command == "sbom":
         from .sbom import generate_sbom_from_directory
         output = generate_sbom_from_directory(args.directory, output_path=args.output)
-        console.print(f"[bold green]SBOM saved to {output}[/bold green]")
+        _log.info(f"<bold><green>SBOM saved to {output}</green></bold>")
 
     elif args.command == "cache":
         from .auditor.cache import cache_stats, cache_clear, cache_prune
         if args.cache_action == "stats":
             stats = cache_stats()
-            console.print("[cyan]Audit cache statistics:[/cyan]")
-            console.print(f"  Total entries:  {stats['total']}")
-            console.print(f"  Approved:       {stats['approved']}")
-            console.print(f"  Rejected:       {stats['rejected']}")
+            _log.info("<cyan>Audit cache statistics:</cyan>")
+            _log.info(f"  Total entries:  {stats['total']}")
+            _log.info(f"  Approved:       {stats['approved']}")
+            _log.info(f"  Rejected:       {stats['rejected']}")
             if stats['oldest_timestamp']:
                 from datetime import datetime, timezone
                 oldest = datetime.fromtimestamp(stats['oldest_timestamp'], tz=timezone.utc)
-                console.print(f"  Oldest entry:   {oldest.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+                _log.info(f"  Oldest entry:   {oldest.strftime('%Y-%m-%d %H:%M:%S UTC')}")
         elif args.cache_action == "clear":
             count = cache_clear()
-            console.print(f"[yellow]Cleared {count} cache entries.[/yellow]")
+            _log.warning(f"<yellow>Cleared {count} cache entries.</yellow>")
         elif args.cache_action == "prune":
             count = cache_prune()
-            console.print(f"[cyan]Pruned {count} expired cache entries.[/cyan]")
+            _log.info(f"<cyan>Pruned {count} expired cache entries.</cyan>")
 
     elif args.command == "verify":
         _run_verify(args.ecosystem, args.package)
@@ -108,18 +109,18 @@ def _run_verify(ecosystem: str, package: str):
             for archive_path in archive_paths:
                 verified, msg = verify_pip_provenance(package, archive_path)
                 if verified:
-                    console.print(f"[bold green]VERIFIED: {msg}[/bold green]")
+                    _log.info(f"<bold><green>VERIFIED: {msg}</green></bold>")
                 else:
-                    console.print(f"[bold red]FAILED: {msg}[/bold red]")
+                    _log.error(f"<bold><red>FAILED: {msg}</red></bold>")
         finally:
             mgr.cleanup(archive_paths, extract_dir)
 
     elif ecosystem == "npm":
         verified, msg = verify_npm_signatures(package)
         if verified:
-            console.print(f"[bold green]VERIFIED: {msg}[/bold green]")
+            _log.info(f"<bold><green>VERIFIED: {msg}</green></bold>")
         else:
-            console.print(f"[bold red]FAILED: {msg}[/bold red]")
+            _log.error(f"<bold><red>FAILED: {msg}</red></bold>")
 
     elif ecosystem == "cargo":
         mgr = CargoManager()
@@ -128,9 +129,9 @@ def _run_verify(ecosystem: str, package: str):
             for archive_path in archive_paths:
                 verified, msg = verify_cargo_checksum(package, archive_path)
                 if verified:
-                    console.print(f"[bold green]VERIFIED: {msg}[/bold green]")
+                    _log.info(f"<bold><green>VERIFIED: {msg}</green></bold>")
                 else:
-                    console.print(f"[bold red]FAILED: {msg}[/bold red]")
+                    _log.error(f"<bold><red>FAILED: {msg}</red></bold>")
         finally:
             mgr.cleanup(archive_paths, extract_dir)
 
