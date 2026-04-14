@@ -187,7 +187,6 @@ class CargoManager(BaseManager):
 
     def perform_install(self, package: str, archive_paths: list[str]):
         console.print(f"[cyan]Running secure cargo install for {package}...[/cyan]")
-        pkg_name = package.split('@')[0]
         # Install from the local audited archive path rather than re-fetching from registry.
         archive_path = archive_paths[0]
         extract_dir = tempfile.mkdtemp()

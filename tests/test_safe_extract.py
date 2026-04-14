@@ -3,7 +3,6 @@ import io
 import os
 import tarfile
 import zipfile
-import tempfile
 
 import pytest
 

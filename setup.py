@@ -12,6 +12,7 @@ setup(
         "rich>=13.0.0",
         "python-dotenv>=1.0.0",
         "packaging>=24.0",
+        "loguru>=0.7.0",
     ],
     entry_points={
         "console_scripts": [

@@ -1,11 +1,9 @@
 """Tests for PipManager: download subprocess args, temp dir cleanup, version pinning."""
 import os
-import re
 import subprocess
-import tempfile
 
 import pytest
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 
 from talkdoc_secure_pm.managers.pip_manager import PipManager
 
@@ -126,6 +124,6 @@ class TestPinDependency:
         }
         mgr.pin_dependency("requests", hashes, filepath=str(req_file))
         content = req_file.read_text()
-        lines = [l for l in content.strip().split("\n") if not l.startswith("#")]
+        lines = [line for line in content.strip().split("\n") if not line.startswith("#")]
         # Should have 2 non-comment pinned lines
         assert len(lines) == 2
