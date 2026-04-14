@@ -14,9 +14,6 @@ import json
 import os
 import subprocess
 import requests as http_requests
-from rich.console import Console
-
-console = Console()
 
 _PYPI_URL = "https://pypi.org"
 

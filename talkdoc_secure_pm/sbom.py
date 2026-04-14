@@ -14,9 +14,7 @@ import os
 import re
 import uuid
 from datetime import datetime, timezone
-from rich.console import Console
-
-console = Console()
+from .logger import logger
 
 
 def _purl(ecosystem: str, name: str, version: str | None = None) -> str:
@@ -109,7 +107,7 @@ def generate_sbom(
         json.dump(sbom, f, indent=2)
         f.write("\n")
 
-    console.print(f"[bold green]SBOM written to {output_path} ({len(components)} components)[/bold green]")
+    logger.info(f"SBOM written to {output_path} ({len(components)} components)")
     return output_path
 
 

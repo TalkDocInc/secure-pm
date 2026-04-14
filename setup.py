@@ -9,7 +9,6 @@ setup(
     install_requires=[
         "requests>=2.32.0",
         "openai>=1.0.0",
-        "rich>=13.0.0",
         "python-dotenv>=1.0.0",
         "packaging>=24.0",
         "loguru>=0.7.0",

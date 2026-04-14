@@ -2,18 +2,13 @@ import os
 import glob
 import json
 import re
-# from rich.console import Console
 
 from talkdoc_secure_pm.managers.pip_manager import PipManager
-from .logger import logger
-
-
 from talkdoc_secure_pm.managers.npm_manager import NpmManager
 from talkdoc_secure_pm.managers.cargo_manager import CargoManager
-
+from .logger import logger
 import tomllib  # Built-in since Python 3.11+
 
-# console = Console()
 
 def parse_requirements(filepath: str) -> list[str]:
     packages = []
@@ -31,7 +26,7 @@ def parse_requirements(filepath: str) -> list[str]:
                 if pkg_spec:
                     packages.append(pkg_spec)
     except Exception as e:
-        logger.error(f"<red>Error parsing {filepath}: {e}</red>")
+        logger.error(f"Error parsing {filepath}: {e}")
     return packages
 
 def parse_package_json(filepath: str) -> list[str]:
@@ -44,7 +39,7 @@ def parse_package_json(filepath: str) -> list[str]:
             packages.extend(deps.keys())
             packages.extend(dev_deps.keys())
     except Exception as e:
-        logger.error(f"<red>Error parsing {filepath}: {e}</red>")
+        logger.error(f"Error parsing {filepath}: {e}")
     return packages
 
 def parse_cargo_toml(filepath: str) -> list[str]:
@@ -64,13 +59,13 @@ def parse_cargo_toml(filepath: str) -> list[str]:
                     packages.extend(dev_section.keys())
             packages.extend(deps.keys())
     except Exception as e:
-        logger.error(f"<red>Error parsing {filepath}: {e}</red>")
+        logger.error(f"Error parsing {filepath}: {e}")
     return list(set(packages))
 
 def run_audit(base_dir: str = "."):
     from dotenv import load_dotenv
     load_dotenv()
-    logger.info(f"<bold><blue>Starting REAL Batch Audit in {base_dir} using AI endpoint...</blue></bold>")
+    logger.info(f"Starting REAL Batch Audit in {base_dir} using AI endpoint...")
     
     req_files = glob.glob(os.path.join(base_dir, "**/requirements.txt"), recursive=True)
     pkg_files = glob.glob(os.path.join(base_dir, "**/package.json"), recursive=True)
@@ -99,7 +94,7 @@ def run_audit(base_dir: str = "."):
     
     # Audit Python
     for f in req_files:
-        logger.info(f"<cyan>Parsing {f}</cyan>")
+        logger.info(f"Parsing {f}")
         pkgs = parse_requirements(f)
         for p in pkgs:
             try:
@@ -110,12 +105,12 @@ def run_audit(base_dir: str = "."):
                     secure_file = f + ".secure"
                     pip_mgr.pin_dependency(p, pkg_hash, filepath=secure_file)
             except Exception as e:
-                logger.warning(f"<yellow>Failed to audit pip package {p}: {e}</yellow>")
+                logger.warning(f"Failed to audit pip package {p}: {e}")
             total_audited += 1
 
     # Audit NPM
     for f in pkg_files:
-        logger.info(f"<cyan>Parsing {f}</cyan>")
+        logger.info(f"Parsing {f}")
         pkgs = parse_package_json(f)
         for p in pkgs:
             try:
@@ -123,12 +118,12 @@ def run_audit(base_dir: str = "."):
                 if not is_safe:
                     unsafe_packages.append((f, p))
             except Exception as e:
-                logger.warning(f"<yellow>Failed to audit npm package {p}: {e}</yellow>")
+                logger.warning(f"Failed to audit npm package {p}: {e}")
             total_audited += 1
 
     # Audit Cargo
     for f in cargo_files:
-        logger.info(f"<cyan>Parsing {f}</cyan>")
+        logger.info(f"Parsing {f}")
         pkgs = parse_cargo_toml(f)
         for p in pkgs:
             try:
@@ -136,16 +131,16 @@ def run_audit(base_dir: str = "."):
                 if not is_safe:
                     unsafe_packages.append((f, p))
             except Exception as e:
-                logger.warning(f"<yellow>Failed to audit cargo package {p}: {e}</yellow>")
+                logger.warning(f"Failed to audit cargo package {p}: {e}")
             total_audited += 1
 
-    logger.info(f"<bold><green>Audit Complete. Total packages audited: {total_audited}</green></bold>")
+    logger.info(f"Audit Complete. Total packages audited: {total_audited}")
     if unsafe_packages:
-        logger.warning("<bold><red>WARNING: The following packages were flagged as unsafe by the AI:</red></bold>")
+        logger.warning("WARNING: The following packages were flagged as unsafe by the AI:")
         for f, p in unsafe_packages:
             logger.warning(f" - {p} (from {f})")
     else:
-        logger.info("<bold><green>All packages appear safe!</green></bold>")
+        logger.info("All packages appear safe!")
 
 if __name__ == "__main__":
     from .logger import configure_logging

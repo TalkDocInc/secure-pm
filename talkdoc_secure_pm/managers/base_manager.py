@@ -2,10 +2,8 @@ import os
 import re
 import shutil
 import hashlib
-from rich.console import Console
+from ..logger import logger
 from ..auditor.ai_agent import AIAuditor
-
-console = Console()
 
 class BaseManager:
     ecosystem: str = "unknown"  # override in subclasses
@@ -22,7 +20,7 @@ class BaseManager:
 
     def audit_only(self, package: str) -> tuple[bool, dict[str, str]]:
         """Downloads the package (no deps for audit to reduce attack surface), runs the AI auditor, and cleans up without installing."""
-        console.print(f"[bold magenta]Starting audit-only workflow for {package}...[/bold magenta]")
+        logger.info(f"Starting audit-only workflow for {package}...")
         archive_paths, extract_dir = self.download(package, include_deps=False)
         try:
             is_safe = self.auditor.audit_package_source(package, extract_dir)
@@ -51,7 +49,7 @@ class BaseManager:
                     dep_path = os.path.join(extract_dir, dep_dir)
                     # Extract package name: strip version suffix (e.g. "requests-2.33.0-.." -> "requests")
                     dep_name = re.split(r'-[0-9]', dep_dir)[0]
-                    console.print(f"[magenta]Auditing dependency: {dep_name}[/magenta]")
+                    logger.info(f"Auditing dependency: {dep_name}")
                     if not self.auditor.audit_package_source(dep_name, dep_path):
                         raise Exception(
                             f"Dependency '{dep_name}' in tree for '{package}' flagged as malicious!"
@@ -66,7 +64,7 @@ class BaseManager:
             for p in archive_paths:
                 h = self.generate_hash(p)
                 pkg_hashes[os.path.basename(p)] = h
-                console.print(f"[cyan]Generated secure hash for {os.path.basename(p)}: {h}[/cyan]")
+                logger.info(f"Generated secure hash for {os.path.basename(p)}: {h}")
 
             # 5. Pin
             self.pin_dependency(package, pkg_hashes)
