@@ -51,13 +51,13 @@ class BaseManager:
                     dep_name = re.split(r'-[0-9]', dep_dir)[0]
                     logger.info(f"Auditing dependency: {dep_name}")
                     if not self.auditor.audit_package_source(dep_name, dep_path):
-                        raise Exception(
+                        raise RuntimeError(
                             f"Dependency '{dep_name}' in tree for '{package}' flagged as malicious!"
                         )
             else:
                 # Fallback: audit the combined extract dir if nothing extracted
                 if not self.auditor.audit_package_source(package, extract_dir):
-                    raise Exception(f"Package '{package}' flagged as malicious by AI Agent!")
+                    raise RuntimeError(f"Package '{package}' flagged as malicious by AI Agent!")
 
             # 4. Hash
             pkg_hashes = {}

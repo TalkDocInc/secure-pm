@@ -9,9 +9,11 @@ Usage from CLI::
     secure-pm sbom <directory>          # scan and generate sbom.cdx.json
     secure-pm sbom <directory> -o out.json
 """
+import glob
 import json
 import os
 import re
+import tomllib
 import uuid
 from datetime import datetime, timezone
 from .logger import logger
@@ -117,8 +119,6 @@ def generate_sbom_from_directory(base_dir: str, output_path: str = "sbom.cdx.jso
 
     This is a lightweight inventory operation.
     """
-    import glob
-    import tomllib
 
     packages: list[dict] = []
 

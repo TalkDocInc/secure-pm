@@ -49,14 +49,8 @@ def parse_cargo_toml(filepath: str) -> list[str]:
             data = tomllib.load(f)
             deps = data.get('dependencies', {})
             dev_deps = data.get('dev-dependencies', {})
-            # Handle both top-level and table-based dev deps
             if isinstance(dev_deps, dict):
                 packages.extend(dev_deps.keys())
-            else:
-                # Check for [dev-dependencies] table
-                dev_section = data.get('dev-dependencies')
-                if isinstance(dev_section, dict):
-                    packages.extend(dev_section.keys())
             packages.extend(deps.keys())
     except Exception as e:
         logger.error(f"Error parsing {filepath}: {e}")
