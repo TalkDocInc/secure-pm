@@ -7,9 +7,7 @@ import re
 from .base_manager import BaseManager
 from ..safe_extract import safe_extract_zip, safe_extract_tar
 from ..signature_verifier import verify_pip_provenance
-from rich.console import Console
-
-console = Console()
+from ..logger import logger
 
 class PipManager(BaseManager):
     ecosystem = "pip"
@@ -18,12 +16,12 @@ class PipManager(BaseManager):
         for archive_path in archive_paths:
             verified, msg = verify_pip_provenance(package, archive_path)
             if verified:
-                console.print(f"[green]Provenance OK: {msg}[/green]")
+                logger.info(f"Provenance OK: {msg}")
             else:
-                console.print(f"[yellow]Provenance warning: {msg}[/yellow]")
+                logger.warning(f"Provenance warning: {msg}")
 
     def download(self, package: str, include_deps: bool = True) -> tuple[list[str], str]:
-        console.print(f"[cyan]Downloading {package} via pip (deps={include_deps})...[/cyan]")
+        logger.info(f"Downloading {package} via pip (deps={include_deps})...")
         temp_dir = tempfile.mkdtemp()
         try:
             # Use current Python's pip module for venv compatibility. --no-deps for audit reduces attack surface.
@@ -58,22 +56,22 @@ class PipManager(BaseManager):
                         os.makedirs(target_extract, exist_ok=True)
                         safe_extract_zip(archive_path, target_extract)
                     except Exception as e:
-                        console.print(f"[yellow]Failed to extract {archive_name}: {e}[/yellow]")
+                        logger.warning(f"Failed to extract {archive_name}: {e}")
                 elif archive_name.endswith('.tar.gz'):
                     try:
                         os.makedirs(target_extract, exist_ok=True)
                         safe_extract_tar(archive_path, target_extract)
                     except Exception as e:
-                        console.print(f"[yellow]Failed to extract {archive_name}: {e}[/yellow]")
+                        logger.warning(f"Failed to extract {archive_name}: {e}")
 
             return all_archives, extract_dir
-        except Exception:
+        except (subprocess.CalledProcessError, shutil.Error, OSError):
             shutil.rmtree(temp_dir, ignore_errors=True)
             raise
 
     def pin_dependency(self, package: str, pkg_hashes: dict[str, str], filepath: str | None = None):
         target_file = filepath if filepath else "requirements.txt"
-        console.print(f"[cyan]Pinning {package} with secure hashes in {target_file}...[/cyan]")
+        logger.info(f"Pinning {package} with secure hashes in {target_file}...")
 
         with open(target_file, "a") as f:
             f.write(f"\n# --- Secured by secure-pm for {package} ---\n")
@@ -92,7 +90,8 @@ class PipManager(BaseManager):
                         f.write(f"{dep_pkg} --hash=sha256:{h}\n")
 
     def perform_install(self, package: str, archive_paths: list[str]):
-        console.print(f"[cyan]Running secure pip install for {package}...[/cyan]")
+        logger.info(f"Running secure pip install for {package}...")
         # Use current Python's pip for venv compatibility
         pip_cmd = [sys.executable, "-m", "pip"]
         subprocess.run(pip_cmd + ["install"] + archive_paths, check=True, timeout=600)
+

@@ -1,4 +1,3 @@
-import hashlib
 import json
 import os
 import shutil
@@ -7,9 +6,7 @@ import tempfile
 from .base_manager import BaseManager
 from ..safe_extract import safe_extract_tar
 from ..signature_verifier import verify_npm_signatures
-from rich.console import Console
-
-console = Console()
+from ..logger import logger
 
 class NpmManager(BaseManager):
     ecosystem = "npm"
@@ -17,12 +14,12 @@ class NpmManager(BaseManager):
     def _verify_signatures(self, package: str, archive_paths: list[str]) -> None:
         verified, msg = verify_npm_signatures(package)
         if verified:
-            console.print(f"[green]Signature OK: {msg}[/green]")
+            logger.info(f"Signature OK: {msg}")
         else:
-            console.print(f"[yellow]Signature warning: {msg}[/yellow]")
+            logger.warning(f"Signature warning: {msg}")
 
     def download(self, package: str, include_deps: bool = True) -> tuple[list[str], str]:
-        console.print(f"[cyan]Downloading {package} via npm (deps={include_deps})...[/cyan]")
+        logger.info(f"Downloading {package} via npm (deps={include_deps})...")
         temp_dir = tempfile.mkdtemp()
         try:
             if not include_deps:
@@ -59,7 +56,7 @@ class NpmManager(BaseManager):
             archive_path = os.path.join(temp_dir, archive_name)
 
             return [archive_path], extract_dir
-        except Exception:
+        except (subprocess.CalledProcessError, OSError, shutil.Error):
             shutil.rmtree(temp_dir, ignore_errors=True)
             raise
 
@@ -74,7 +71,7 @@ class NpmManager(BaseManager):
         import base64
 
         target_file = filepath if filepath else "package-lock.secure.json"
-        console.print(f"[cyan]Pinning {package} with integrity hashes in {target_file}...[/cyan]")
+        logger.info(f"Pinning {package} with integrity hashes in {target_file}...")
 
         # Load existing lockfile entries if present
         existing: dict = {}
@@ -115,9 +112,10 @@ class NpmManager(BaseManager):
             json.dump(existing, f, indent=2, sort_keys=True)
             f.write("\n")
 
-        console.print(f"[green]Pinned {package} with integrity hash in {target_file}[/green]")
+        logger.info(f"Pinned {package} with integrity hash in {target_file}")
 
     def perform_install(self, package: str, archive_paths: list[str]):
-        console.print(f"[cyan]Running secure npm install for {package}...[/cyan]")
+        logger.info(f"Running secure npm install for {package}...")
         # Install directly from the audited local tarball to guarantee the exact code is used
         subprocess.run(["npm", "install", archive_paths[0]], check=True, timeout=300)
+

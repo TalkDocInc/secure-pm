@@ -1,13 +1,12 @@
 import argparse
 import sys
-from rich.console import Console
 from .managers.pip_manager import PipManager
 from .managers.npm_manager import NpmManager
 from .managers.cargo_manager import CargoManager
-
-console = Console()
+from .logger import logger, configure_logging
 
 def main():
+    configure_logging()
     from dotenv import load_dotenv
     load_dotenv()
     parser = argparse.ArgumentParser(
@@ -44,7 +43,7 @@ def main():
     args = parser.parse_args()
 
     if args.command == "install":
-        console.print(f"[bold blue]Starting secure install for {args.ecosystem} package: {args.package}[/bold blue]")
+        logger.info(f"Starting secure install for {args.ecosystem} package: {args.package}")
 
         if args.ecosystem == "pip":
             manager = PipManager()
@@ -53,14 +52,14 @@ def main():
         elif args.ecosystem == "cargo":
             manager = CargoManager()
         else:
-            console.print(f"[bold red]Unsupported ecosystem: {args.ecosystem}[/bold red]")
+            logger.error(f"Unsupported ecosystem: {args.ecosystem}")
             sys.exit(1)
 
         try:
             manager.install(args.package)
-            console.print(f"[bold green]Successfully installed and secured {args.package}[/bold green]")
+            logger.info(f"Successfully installed and secured {args.package}")
         except Exception as e:
-            console.print(f"[bold red]Installation failed: {e}[/bold red]")
+            logger.error(f"Installation failed: {e}")
             sys.exit(1)
 
     elif args.command == "audit-all":
@@ -70,26 +69,26 @@ def main():
     elif args.command == "sbom":
         from .sbom import generate_sbom_from_directory
         output = generate_sbom_from_directory(args.directory, output_path=args.output)
-        console.print(f"[bold green]SBOM saved to {output}[/bold green]")
+        logger.info(f"SBOM saved to {output}")
 
     elif args.command == "cache":
         from .auditor.cache import cache_stats, cache_clear, cache_prune
         if args.cache_action == "stats":
             stats = cache_stats()
-            console.print(f"[cyan]Audit cache statistics:[/cyan]")
-            console.print(f"  Total entries:  {stats['total']}")
-            console.print(f"  Approved:       {stats['approved']}")
-            console.print(f"  Rejected:       {stats['rejected']}")
+            logger.info("Audit cache statistics:")
+            logger.info(f"  Total entries:  {stats['total']}")
+            logger.info(f"  Approved:       {stats['approved']}")
+            logger.info(f"  Rejected:       {stats['rejected']}")
             if stats['oldest_timestamp']:
                 from datetime import datetime, timezone
                 oldest = datetime.fromtimestamp(stats['oldest_timestamp'], tz=timezone.utc)
-                console.print(f"  Oldest entry:   {oldest.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+                logger.info(f"  Oldest entry:   {oldest.strftime('%Y-%m-%d %H:%M:%S UTC')}")
         elif args.cache_action == "clear":
             count = cache_clear()
-            console.print(f"[yellow]Cleared {count} cache entries.[/yellow]")
+            logger.info(f"Cleared {count} cache entries.")
         elif args.cache_action == "prune":
             count = cache_prune()
-            console.print(f"[cyan]Pruned {count} expired cache entries.[/cyan]")
+            logger.info(f"Pruned {count} expired cache entries.")
 
     elif args.command == "verify":
         _run_verify(args.ecosystem, args.package)
@@ -106,18 +105,18 @@ def _run_verify(ecosystem: str, package: str):
             for archive_path in archive_paths:
                 verified, msg = verify_pip_provenance(package, archive_path)
                 if verified:
-                    console.print(f"[bold green]VERIFIED: {msg}[/bold green]")
+                    logger.info(f"VERIFIED: {msg}")
                 else:
-                    console.print(f"[bold red]FAILED: {msg}[/bold red]")
+                    logger.error(f"FAILED: {msg}")
         finally:
             mgr.cleanup(archive_paths, extract_dir)
 
     elif ecosystem == "npm":
         verified, msg = verify_npm_signatures(package)
         if verified:
-            console.print(f"[bold green]VERIFIED: {msg}[/bold green]")
+            logger.info(f"VERIFIED: {msg}")
         else:
-            console.print(f"[bold red]FAILED: {msg}[/bold red]")
+            logger.error(f"FAILED: {msg}")
 
     elif ecosystem == "cargo":
         mgr = CargoManager()
@@ -126,9 +125,9 @@ def _run_verify(ecosystem: str, package: str):
             for archive_path in archive_paths:
                 verified, msg = verify_cargo_checksum(package, archive_path)
                 if verified:
-                    console.print(f"[bold green]VERIFIED: {msg}[/bold green]")
+                    logger.info(f"VERIFIED: {msg}")
                 else:
-                    console.print(f"[bold red]FAILED: {msg}[/bold red]")
+                    logger.error(f"FAILED: {msg}")
         finally:
             mgr.cleanup(archive_paths, extract_dir)
 

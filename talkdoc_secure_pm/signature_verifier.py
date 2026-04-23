@@ -12,11 +12,10 @@ tampered with in transit.
 import hashlib
 import json
 import os
+import shutil
 import subprocess
+import tempfile
 import requests as http_requests
-from rich.console import Console
-
-console = Console()
 
 _PYPI_URL = "https://pypi.org"
 
@@ -46,7 +45,7 @@ def verify_pip_provenance(package: str, archive_path: str) -> tuple[bool, str]:
         resp = http_requests.get(f"{_PYPI_URL}/pypi/{pkg_name}/json", timeout=30)
         resp.raise_for_status()
         data = resp.json()
-    except Exception as e:
+    except (http_requests.RequestException, ValueError) as e:
         return False, f"Failed to fetch PyPI metadata for {pkg_name}: {e}"
 
     # Search all releases for a matching filename
@@ -85,32 +84,40 @@ def verify_npm_signatures(package: str, temp_dir: str | None = None) -> tuple[bo
 
     Returns ``(verified, message)``.
     """
-    import tempfile
-    work_dir = temp_dir or tempfile.mkdtemp()
-
-    # Ensure a minimal package.json exists so npm audit signatures works
-    pkg_json = os.path.join(work_dir, "package.json")
-    if not os.path.exists(pkg_json):
-        with open(pkg_json, "w") as f:
-            json.dump({"name": "secure-pm-verify", "version": "0.0.0", "dependencies": {package: "*"}}, f)
+    owned_dir: str | None = None
+    if temp_dir is None:
+        owned_dir = tempfile.mkdtemp()
+        work_dir = owned_dir
+    else:
+        work_dir = temp_dir
 
     try:
-        result = subprocess.run(
-            ["npm", "audit", "signatures"],
-            cwd=work_dir, capture_output=True, text=True, timeout=120,
-        )
-        output = (result.stdout + result.stderr).strip()
+        # Ensure a minimal package.json exists so npm audit signatures works
+        pkg_json = os.path.join(work_dir, "package.json")
+        if not os.path.exists(pkg_json):
+            with open(pkg_json, "w") as f:
+                json.dump({"name": "secure-pm-verify", "version": "0.0.0", "dependencies": {package: "*"}}, f)
 
-        if result.returncode == 0:
-            return True, f"npm signature verification passed for {package}"
-        else:
-            return False, f"npm signature verification failed for {package}: {output}"
-    except FileNotFoundError:
-        return False, "npm not found — cannot verify npm signatures"
-    except subprocess.TimeoutExpired:
-        return False, "npm audit signatures timed out"
-    except Exception as e:
-        return False, f"npm signature check error: {e}"
+        try:
+            result = subprocess.run(
+                ["npm", "audit", "signatures"],
+                cwd=work_dir, capture_output=True, text=True, timeout=120,
+            )
+            output = (result.stdout + result.stderr).strip()
+
+            if result.returncode == 0:
+                return True, f"npm signature verification passed for {package}"
+            else:
+                return False, f"npm signature verification failed for {package}: {output}"
+        except FileNotFoundError:
+            return False, "npm not found — cannot verify npm signatures"
+        except subprocess.TimeoutExpired:
+            return False, "npm audit signatures timed out"
+        except OSError as e:
+            return False, f"npm signature check error: {e}"
+    finally:
+        if owned_dir is not None:
+            shutil.rmtree(owned_dir, ignore_errors=True)
 
 
 def verify_cargo_checksum(package: str, archive_path: str) -> tuple[bool, str]:
@@ -156,7 +163,7 @@ def verify_cargo_checksum(package: str, archive_path: str) -> tuple[bool, str]:
         resp.raise_for_status()
         data = resp.json()
         expected_cksum = data.get("version", {}).get("checksum", "")
-    except Exception as e:
+    except (http_requests.RequestException, ValueError) as e:
         return False, f"Failed to fetch crates.io checksum for {pkg_name}@{version}: {e}"
 
     if not expected_cksum:

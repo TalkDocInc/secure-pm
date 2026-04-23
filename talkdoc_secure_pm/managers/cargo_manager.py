@@ -4,13 +4,11 @@ import re
 import shutil
 import subprocess
 import tempfile
-import requests as http_requests
+import requests
 from .base_manager import BaseManager
 from ..safe_extract import safe_extract_tar
 from ..signature_verifier import verify_cargo_checksum
-from rich.console import Console
-
-console = Console()
+from ..logger import logger
 
 _CRATES_IO_UA = {"User-Agent": "secure-pm (https://github.com/TalkDocInc/secure-pm)"}
 
@@ -22,12 +20,12 @@ class CargoManager(BaseManager):
         for archive_path in archive_paths:
             verified, msg = verify_cargo_checksum(package, archive_path)
             if verified:
-                console.print(f"[green]Checksum OK: {msg}[/green]")
+                logger.info(f"Checksum OK: {msg}")
             else:
-                console.print(f"[yellow]Checksum warning: {msg}[/yellow]")
+                logger.warning(f"Checksum warning: {msg}")
 
     def download(self, package: str, include_deps: bool = True) -> tuple[list[str], str]:
-        console.print(f"[cyan]Downloading {package} via crates.io API (deps={include_deps})...[/cyan]")
+        logger.info(f"Downloading {package} via crates.io API (deps={include_deps})...")
         temp_dir = tempfile.mkdtemp()
         try:
             parts = package.split('@')
@@ -35,7 +33,7 @@ class CargoManager(BaseManager):
             version = parts[1] if len(parts) > 1 else None
 
             if not version:
-                resp = http_requests.get(
+                resp = requests.get(
                     f"https://crates.io/api/v1/crates/{pkg_name}",
                     timeout=30, headers=_CRATES_IO_UA,
                 ).json()
@@ -53,7 +51,7 @@ class CargoManager(BaseManager):
             try:
                 safe_extract_tar(primary_archive, extract_dir)
             except Exception as e:
-                console.print(f"[yellow]Failed to extract {pkg_name}-{version}: {e}[/yellow]")
+                logger.warning(f"Failed to extract {pkg_name}-{version}: {e}")
 
             # If include_deps, also download transitive dependencies
             if include_deps:
@@ -64,10 +62,10 @@ class CargoManager(BaseManager):
                         all_archives.append(dep_archive)
                         safe_extract_tar(dep_archive, extract_dir)
                     except Exception as e:
-                        console.print(f"[yellow]Failed to download/extract dep {dep_name}@{dep_version}: {e}[/yellow]")
+                        logger.warning(f"Failed to download/extract dep {dep_name}@{dep_version}: {e}")
 
             return all_archives, extract_dir
-        except Exception:
+        except (requests.RequestException, OSError, shutil.Error):
             shutil.rmtree(temp_dir, ignore_errors=True)
             raise
 
@@ -80,7 +78,7 @@ class CargoManager(BaseManager):
         if os.path.exists(archive_path):
             return archive_path  # already downloaded (shared transitive dep)
 
-        r = http_requests.get(url, stream=True, timeout=60, headers=_CRATES_IO_UA)
+        r = requests.get(url, stream=True, timeout=60, headers=_CRATES_IO_UA)
         r.raise_for_status()
         with open(archive_path, 'wb') as f:
             for chunk in r.iter_content(chunk_size=8192):
@@ -99,12 +97,12 @@ class CargoManager(BaseManager):
         result: list[tuple[str, str]] = []
 
         try:
-            resp = http_requests.get(
+            resp = requests.get(
                 f"https://crates.io/api/v1/crates/{name}/{version}/dependencies",
                 timeout=30, headers=_CRATES_IO_UA,
             ).json()
-        except Exception as e:
-            console.print(f"[yellow]Failed to resolve deps for {name}@{version}: {e}[/yellow]")
+        except requests.RequestException as e:
+            logger.warning(f"Failed to resolve deps for {name}@{version}: {e}")
             return result
 
         for dep in resp.get("dependencies", []):
@@ -132,12 +130,12 @@ class CargoManager(BaseManager):
         doing full semver constraint solving against *_req*.
         """
         try:
-            resp = http_requests.get(
+            resp = requests.get(
                 f"https://crates.io/api/v1/crates/{name}",
                 timeout=30, headers=_CRATES_IO_UA,
             ).json()
             return resp.get("crate", {}).get("max_version")
-        except Exception:
+        except requests.RequestException:
             return None
 
     def pin_dependency(self, package: str, pkg_hashes: dict[str, str], filepath: str | None = None):
@@ -148,7 +146,7 @@ class CargoManager(BaseManager):
         checked into version control and verified before future installs.
         """
         target_file = filepath if filepath else "Cargo.lock.secure.json"
-        console.print(f"[cyan]Pinning {package} with checksums in {target_file}...[/cyan]")
+        logger.info(f"Pinning {package} with checksums in {target_file}...")
 
         existing: dict = {}
         if os.path.exists(target_file):
@@ -183,11 +181,10 @@ class CargoManager(BaseManager):
             json.dump(existing, f, indent=2, sort_keys=True)
             f.write("\n")
 
-        console.print(f"[green]Pinned {package} with checksums in {target_file}[/green]")
+        logger.info(f"Pinned {package} with checksums in {target_file}")
 
     def perform_install(self, package: str, archive_paths: list[str]):
-        console.print(f"[cyan]Running secure cargo install for {package}...[/cyan]")
-        pkg_name = package.split('@')[0]
+        logger.info(f"Running secure cargo install for {package}...")
         # Install from the local audited archive path rather than re-fetching from registry.
         archive_path = archive_paths[0]
         extract_dir = tempfile.mkdtemp()
@@ -205,3 +202,4 @@ class CargoManager(BaseManager):
             )
         finally:
             shutil.rmtree(extract_dir, ignore_errors=True)
+

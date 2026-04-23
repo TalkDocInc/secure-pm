@@ -13,7 +13,7 @@ from talkdoc_secure_pm.managers.pip_manager import PipManager
 
 def main():
     mgr = PipManager()
-    direct_deps = ["requests", "openai", "rich", "python-dotenv", "packaging"]
+    direct_deps = ["requests", "openai", "loguru", "python-dotenv", "packaging"]
     print("Generating bootstrap requirements (full dependency trees) for secure-pm...")
 
     # filename -> (pkg, version, hash) -- filename key deduplicates shared transitive archives

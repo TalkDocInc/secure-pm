@@ -9,15 +9,14 @@ Usage from CLI::
     secure-pm sbom <directory>          # scan and generate sbom.cdx.json
     secure-pm sbom <directory> -o out.json
 """
-import hashlib
+import glob
 import json
 import os
 import re
+import tomllib
 import uuid
 from datetime import datetime, timezone
-from rich.console import Console
-
-console = Console()
+from .logger import logger
 
 
 def _purl(ecosystem: str, name: str, version: str | None = None) -> str:
@@ -110,7 +109,7 @@ def generate_sbom(
         json.dump(sbom, f, indent=2)
         f.write("\n")
 
-    console.print(f"[bold green]SBOM written to {output_path} ({len(components)} components)[/bold green]")
+    logger.info(f"SBOM written to {output_path} ({len(components)} components)")
     return output_path
 
 
@@ -120,8 +119,6 @@ def generate_sbom_from_directory(base_dir: str, output_path: str = "sbom.cdx.jso
 
     This is a lightweight inventory operation.
     """
-    import glob
-    import tomllib
 
     packages: list[dict] = []
 
@@ -153,7 +150,7 @@ def generate_sbom_from_directory(base_dir: str, output_path: str = "sbom.cdx.jso
                             "ecosystem": "pip", "hashes": hashes,
                             "audit_status": "catalogued",
                         })
-        except Exception:
+        except (OSError, UnicodeDecodeError):
             pass
 
     # --- NPM package.json ---
@@ -171,7 +168,7 @@ def generate_sbom_from_directory(base_dir: str, output_path: str = "sbom.cdx.jso
                         "ecosystem": "npm",
                         "audit_status": "catalogued",
                     })
-        except Exception:
+        except json.JSONDecodeError:
             pass
 
     # --- Cargo.toml ---
@@ -193,7 +190,8 @@ def generate_sbom_from_directory(base_dir: str, output_path: str = "sbom.cdx.jso
                         "ecosystem": "cargo",
                         "audit_status": "catalogued",
                     })
-        except Exception:
+        except tomllib.TOMLDecodeError:
             pass
 
     return generate_sbom(packages, output_path=output_path, project_name=os.path.basename(os.path.abspath(base_dir)))
+

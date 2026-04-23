@@ -2,7 +2,6 @@
 import json
 import os
 
-import pytest
 
 from talkdoc_secure_pm.sbom import generate_sbom, generate_sbom_from_directory
 

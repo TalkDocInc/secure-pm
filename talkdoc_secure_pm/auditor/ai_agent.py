@@ -1,10 +1,8 @@
 import os
 import hashlib
 from openai import OpenAI
-from rich.console import Console
+from ..logger import logger
 from .cache import cache_get, cache_put
-
-console = Console()
 
 
 class AIAuditor:
@@ -36,10 +34,10 @@ class AIAuditor:
             self.client = OpenAI(base_url=ollama_base_url, api_key=ollama_api_key)
 
         if not self.client:
-            console.print(
-                f"[bold yellow]⚠ WARNING: Provider '{self.provider}' has no API key configured. "
+            logger.warning(
+                f"Provider '{self.provider}' has no API key configured. "
                 f"AI auditing is DISABLED — packages will be REJECTED by default. "
-                f"Set {self._key_env_name()} to enable.[/bold yellow]"
+                f"Set {self._key_env_name()} to enable."
             )
 
     def _key_env_name(self) -> str:
@@ -70,7 +68,7 @@ class AIAuditor:
                             continue  # skip files that would exceed token budget
                         code_snippets.append(f"File: {file}\n```\n{content}\n```")
                         total_chars += len(content)
-                    except Exception:
+                    except (OSError, UnicodeDecodeError):
                         pass
 
         combined_code = "\n\n".join(code_snippets)
@@ -81,20 +79,20 @@ class AIAuditor:
 
         # Check in-memory cache first, then persistent (SQLite) cache
         if cache_key in self._cache:
-            console.print(f"[cyan]Cache hit (memory) for {package_name} (hash {content_hash[:8]})[/cyan]")
+            logger.info(f"Cache hit (memory) for {package_name} (hash {content_hash[:8]})")
             return self._cache[cache_key]
         persistent_result = cache_get(cache_key)
         if persistent_result is not None:
-            console.print(f"[cyan]Cache hit (disk) for {package_name} (hash {content_hash[:8]})[/cyan]")
+            logger.info(f"Cache hit (disk) for {package_name} (hash {content_hash[:8]})")
             self._cache[cache_key] = persistent_result
             return persistent_result
 
         # 4. No API key — fail-closed: reject packages when no AI audit can be performed
         if not self.client or not self.model:
-            console.print(
-                f"[bold red]REJECTED {package_name} — no AI provider configured. "
+            logger.error(
+                f"REJECTED {package_name} — no AI provider configured. "
                 f"Cannot verify package safety without AI audit. "
-                f"Set {self._key_env_name()} to enable auditing.[/bold red]"
+                f"Set {self._key_env_name()} to enable auditing."
             )
             self._cache[cache_key] = False
             cache_put(cache_key, False, provider=self.provider, model=self.model or "")
@@ -122,7 +120,7 @@ APPROVED
 or
 REJECTED: <reason>
 """
-        console.print(f"[cyan]Sending {package_name} ({len(code_snippets)} files) to {self.model} ({self.provider}) for audit...[/cyan]")
+        logger.info(f"Sending {package_name} ({len(code_snippets)} files) to {self.model} ({self.provider}) for audit...")
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -137,14 +135,15 @@ REJECTED: <reason>
             decision = content.strip() if content else "REJECTED: No response"
             is_approved = decision.startswith("APPROVED")
             if is_approved:
-                console.print(f"[bold green]AI Audit Passed for {package_name}[/bold green]")
+                logger.info(f"AI Audit Passed for {package_name}")
             else:
-                console.print(f"[bold red]AI Audit Failed for {package_name}: {decision}[/bold red]")
+                logger.error(f"AI Audit Failed for {package_name}: {decision}")
             self._cache[cache_key] = is_approved
             cache_put(cache_key, is_approved, provider=self.provider, model=self.model or "")
             return is_approved
         except Exception as e:
-            console.print(f"[bold red]AI API error: {e}[/bold red]")
+            logger.error(f"AI API error: {e}")
             self._cache[cache_key] = False
             cache_put(cache_key, False, provider=self.provider, model=self.model or "")
             return False
+
